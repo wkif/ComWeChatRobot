@@ -24,3 +24,7 @@ DATABASE_PATH = "data"
 """数据库存放目录"""
 DOWNLOAD_TIMEOUT = 10
 """下载超时时间"""
+SUPERADMIN_USER_ID = "wxid_ijmga1yqj5ug22"
+"""超级管理员用户id"""
+REBOT_NAME = "秘书"
+"""机器人名字"""
