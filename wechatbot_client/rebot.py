@@ -1,3 +1,4 @@
+from datetime import datetime
 import re
 from wechatbot_client.action_manager import (
     ActionManager,
@@ -18,7 +19,7 @@ from wechatbot_client.networkInterface.YiYan import getYiYanApi
 from wechatbot_client.networkInterface.DouYin import getDouYinWaterMarkApi
 from wechatbot_client.networkInterface.Meng import MengApi
 from wechatbot_client.networkInterface.WeiBoHot import WeiBoHotApi
-
+from wechatbot_client.networkInterface.Weather import WeatherApi
 
 log = logger_wrapper("WeChat Manager")
 
@@ -231,6 +232,8 @@ class Rebot(Adapter):
             await self.getMeng(group_id, messageText)
         elif "微博热搜" in messageText:
             await self.getWeiBoHot(group_id)
+        elif "天气" in messageText:
+            await self.getWeather(group_id, messageText)
         else:
             pass
 
@@ -545,6 +548,24 @@ class Rebot(Adapter):
                 mess = mess + "🎈   "+i['title'] +\
                     ":" + "热度： " + i['hot'] + "  ❤️‍🔥\n"
             mess = mess + "-----------------------------\n"
+            await self.sedGroupMsg(group_id, mess)
+        else:
+            await self.sedGroupMsg(group_id, res)
+
+# 天气
+    async def getWeather(self, group_id, messageText):
+        city = messageText.replace("天气", "")
+        res = await WeatherApi(city)
+        if "data" in res:
+            data = res['data']
+            if data['last_update']:
+                dt = datetime.fromisoformat(data['last_update'])
+                formatted_time = dt.strftime("%Y-%m-%d %H:%M:%S")
+            else:
+                formatted_time = ""
+            mess = city + "现在"+data['now']['text'] +\
+                ",温度"+data['now']['temperature'] +\
+                ",更新时间："+formatted_time
             await self.sedGroupMsg(group_id, mess)
         else:
             await self.sedGroupMsg(group_id, res)
