@@ -16,6 +16,7 @@ from wechatbot_client.speechStatistics.main import SpeechStatistics
 from wechatbot_client.speechStatistics.message import MessageDb
 from wechatbot_client.networkInterface.YiYan import getYiYanApi
 from wechatbot_client.networkInterface.DouYin import getDouYinWaterMarkApi
+from wechatbot_client.networkInterface.Meng import MengApi
 
 
 log = logger_wrapper("WeChat Manager")
@@ -225,6 +226,8 @@ class Rebot(Adapter):
             await self.getYiYan(group_id)
         elif "去水印" in messageText:
             await self.getVideoWaterMark(group_id, messageText)
+        elif "解梦" in messageText:
+            await self.getMeng(group_id, messageText)
         else:
             pass
 
@@ -510,3 +513,16 @@ class Rebot(Adapter):
             
         else:
             await self.sedGroupMsg(group_id, "没有找到抖音链接")
+
+# 解梦
+    async def getMeng(self, group_id, messageText):
+        word = messageText.replace("解梦", "")
+        res = await MengApi(word)
+        if "data" in res:
+            data = res['data']
+            mess = ""
+            for i in data:
+                mess = mess + "梦到： " + i['title'] + "\n" + "解梦： " + i['text'] + "\n"
+            await self.sedGroupMsg(group_id, mess)
+        else:
+            await self.sedGroupMsg(group_id, res)
