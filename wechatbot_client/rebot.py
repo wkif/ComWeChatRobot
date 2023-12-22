@@ -65,20 +65,23 @@ class Rebot(Adapter):
 
 # 发送群消息
     async def sedGroupMsg(self, group_id, msg):
-        await self.action_request(
-            ActionRequest(action="send_message", params={
-                "detail_type": "group",
-                "group_id": group_id,
-                "message": [
-                    {
-                        "type": "text",
-                        "data": {
-                            "text": msg
-                        }
-                    }
-                ]
-            })
-        )
+        print("发送")
+        print(msg)
+        return
+        # await self.action_request(
+        #     ActionRequest(action="send_message", params={
+        #         "detail_type": "group",
+        #         "group_id": group_id,
+        #         "message": [
+        #             {
+        #                 "type": "text",
+        #                 "data": {
+        #                     "text": msg
+        #                 }
+        #             }
+        #         ]
+        #     })
+        # )
 
 # 在群里艾特某人
     async def sedGroupMentionMsg(self, group_id, user_id):
@@ -99,7 +102,6 @@ class Rebot(Adapter):
 
 # 获取群信息
     async def getGroupInfo(self, group_id):
-        print("group_id"+group_id)
         return await self.action_request(
             ActionRequest(action="get_group_info", params={
                 "group_id": group_id,
@@ -129,7 +131,8 @@ class Rebot(Adapter):
                 isAdmin = True
                 break
         if not isAdmin:
-            await self.sedGroupMsg(group_id, self.isNotAdminMsg)
+            # await self.sedGroupMsg(group_id, self.isNotAdminMsg)
+            pass
         return isAdmin
 
 # 主处理模块
@@ -145,15 +148,34 @@ class Rebot(Adapter):
             mention_userId = msg["message"][0].data['user_id']
             print("mention_userId:"+mention_userId)
             messageText = msg["message"][1].data['text']
+        elif mesageType == "text" or mesageType == "reply":
+            messageText = msg["message"][-1].data['text']
+        elif mesageType == "wx.emoji":
+            messageText = "wx.emoji"
         else:
-            messageText = msg["message"][0].data['text']
+            return
         group_id = msg['group_id']
         print("sender_user_id："+sender_user_id)
         print("group_id："+group_id)
         print("messageText："+messageText)
         # 聊天内容记录
-        await self.recordChat(group_id, sender_user_id, messageText,
+        if await self.speechstatistics.checkRecordChat(group_id):
+            print("记录！！！")
+            await self.recordChat(group_id, sender_user_id, messageText,
                               msg['time'])
+        # if sender_user_id != SUPERADMIN_USER_ID and mesageType == "mention":
+        #     # await self.sedGroupMsg(group_id, "老大还在测试，别急哈！")
+        #     return
+        if messageText == "开通记录":
+            if await self.AdminVerification(group_id, sender_user_id):
+                await self.startRecordChat(group_id)
+        if messageText == "关闭记录":
+            if await self.AdminVerification(group_id, sender_user_id):
+                await self.stopRecordChat(group_id)
+        if not await self.speechstatistics.checkOpenGroupList(group_id):
+            if mesageType == "mention":
+                print("有人艾特，但群没有开通功能")
+            return
         if messageText == "功能菜单" or messageText == "功能列表":
             await self.menuList(group_id, sender_user_id)
         elif messageText == "增加管理" or messageText == "新增管理":
@@ -179,17 +201,17 @@ class Rebot(Adapter):
                 await self.getQuitGroupList(group_id)
         elif messageText == "签到":
             await self.signIn(group_id, sender_user_id)
-        elif messageText == "开通聊天数据统计":
+        elif messageText == "开通机器人":
             if await self.AdminVerification(group_id, sender_user_id):
                 await self.addOpenGroup(group_id)
-        elif messageText == "关闭聊天数据统计":
+        elif messageText == "关闭机器人":
             if await self.AdminVerification(group_id, sender_user_id):
                 await self.deleteOpenGroup(group_id)
-        elif messageText == "日活排行":
+        elif messageText == "日活跃度":
             await self.getMessageRanking_today(group_id)
-        elif messageText == "月活排行":
+        elif messageText == "月活跃度":
             await self.getMessageRanking_month(group_id)
-        elif messageText == "总活排行":
+        elif messageText == "总活跃度":
             await self.getMessageRanking_all(group_id)
         else:
             pass
@@ -198,7 +220,7 @@ class Rebot(Adapter):
         message = '''
         -------功能菜单-------\n
         ----群管理特权区----\n
-        1. 口令：艾特我 查看退群成员；\n
+        1. 口令：查看退群成员；\n
         2. 口令：艾特新管理员 增加管理；\n
         3. 口令：艾特管理员 删除管理；\n
         ----群成员功能区----\n
@@ -270,7 +292,6 @@ class Rebot(Adapter):
 
     async def signIn(self, group_id, user_id):
         res = await self.sign.signIn(user_id)
-        print(res)
         if res['status'] == 0:
             # msg = "今天已经签到过了,明天再来吧；累计签到" + str(res['sign_count']) +\
             #     "天;"+"连续签到" + str(res['count']) + "天"
@@ -295,7 +316,7 @@ class Rebot(Adapter):
             msg = "签到失败"
         await self.sedGroupMsg(group_id, msg)
 
-# 新增聊天记录群组
+# 开通机器人
     async def addOpenGroup(self, group_id):
         currentStatus = await self.speechstatistics.checkOpenGroupList(group_id)
         if currentStatus:
@@ -303,12 +324,12 @@ class Rebot(Adapter):
             return
         status = await self.speechstatistics.addOpenGroupList(group_id)
         if status:
-            await self.sedGroupMsg(group_id, "开通成功，将对群聊天记录进行加密统计，看看谁是屁话王，你放心！")
+            await self.sedGroupMsg(group_id, "开通成功")
         else:
             await self.sedGroupMsg(group_id, "哦豁，开通失败，老大来看看")
             await self.sedGroupMentionMsg(group_id, user_id=SUPERADMIN_USER_ID)
 
-# 关闭群组聊天记录
+# 关闭机器人
     async def deleteOpenGroup(self, group_id):
         currentStatus = await self.speechstatistics.checkOpenGroupList(group_id)
         if not currentStatus:
@@ -321,13 +342,34 @@ class Rebot(Adapter):
             await self.sedGroupMsg(group_id, "哦豁，关闭失败，老大来看看")
             await self.sedGroupMentionMsg(group_id, user_id=SUPERADMIN_USER_ID)
 
+# 开通记录
+    async def startRecordChat(self, group_id):
+        status = await self.speechstatistics.startRecordChat(group_id)
+        if status == 1:
+            await self.sedGroupMsg(group_id, "开通成功")
+        elif status == 2:
+            await self.sedGroupMsg(group_id, "已经开通了")
+        else:
+            await self.sedGroupMsg(group_id, "哦豁，开通失败，老大来看看")
+            await self.sedGroupMentionMsg(group_id, user_id=SUPERADMIN_USER_ID)
+
+# 关闭记录
+    async def stopRecordChat(self, group_id):
+        status = await self.speechstatistics.stopRecordChat(group_id)
+        if status == 1:
+            await self.sedGroupMsg(group_id, "关闭成功")
+        elif status == 2:
+            await self.sedGroupMsg(group_id, "已经关闭了")
+        else:
+            await self.sedGroupMsg(group_id, "哦豁，关闭失败，老大来看看")
+            await self.sedGroupMentionMsg(group_id, user_id=SUPERADMIN_USER_ID)
+
 # 聊天内容记录
     async def recordChat(self, group_id, sender_user_id, message, time):
-        if await self.speechstatistics.checkOpenGroupList(group_id):
+        if await self.speechstatistics.checkRecordChat(group_id):
             detail_type = "group"
             group_name = ""
             groupInfo = await self.getGroupInfo(group_id)
-            print(groupInfo)
             if groupInfo and groupInfo.dict()['retcode'] == 0:
                 group_name = groupInfo.dict()['data']['group_name']
             sender_user_name = ""
@@ -354,7 +396,7 @@ class Rebot(Adapter):
         for a in result:
             mess = mess + "✨" + a['user_name'] + " ： " + str(a['number']) + "次✨\n"
         msg = """
-╭┈┈🎖日活排行🎖┈┈╮
+╭┈┈🎖日活跃度🎖┈┈╮
 """ + mess + """
 ╰┈┈┈┈┈┈┈┈┈╯
 """
@@ -374,7 +416,7 @@ class Rebot(Adapter):
         for a in result:
             mess = mess + "✨" + a['user_name'] + " ： " + str(a['number']) + "次✨\n"
         msg = """
-╭┈┈🎖月活排行🎖┈┈╮
+╭┈┈🎖月活跃度🎖┈┈╮
 """ + mess + """
 ╰┈┈┈┈┈┈┈┈┈╯
 """
@@ -394,7 +436,7 @@ class Rebot(Adapter):
         for a in result:
             mess = mess + "✨" + a['user_name'] + "   " + str(a['number']) + "次✨\n"
         msg = """
-╭┈┈🎖总活排行🎖┈┈╮
+╭┈┈🎖总活跃度🎖┈┈╮
 """ + mess + """
 ╰┈┈┈┈┈┈┈┈┈╯
 """

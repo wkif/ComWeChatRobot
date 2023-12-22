@@ -21,7 +21,7 @@ class SpeechStatistics:
         #     f.close()
         #     return data
 
-# 增加开通发言记录群组
+# 群组开启功能
     async def addOpenGroupList(self, group_id):
         list = await self.getOpenGroupList()
         for i in list:
@@ -35,7 +35,7 @@ class SpeechStatistics:
         self.conn.commit()
         return True
 
-# 移除开通发言记录群组
+# 群组关闭功能
     async def deleteOpenGroupList(self, group_id):
         list = await self.getOpenGroupList()
         for i in list:
@@ -46,9 +46,49 @@ class SpeechStatistics:
                 return True
         return False
 
-# 是否开通
+# 是否开通功能
     async def checkOpenGroupList(self, group_id):
         sql = "select * from openGroup where group_id = ? and status = 1"
+        self.cursor.execute(sql, (group_id,))
+        result = self.cursor.fetchall()
+        if result:
+            return True
+        else:
+            return False
+
+# 开启记录
+    async def startRecordChat(self, group_id):
+        list = await self.getOpenGroupList()
+        for i in list:
+            if i[1] == group_id:
+                if i[3] == 1:
+                    return 2
+                else:
+                    sql = "update openGroup set recordChatStatus = 1 where group_id = ?"
+                    self.cursor.execute(sql, (group_id,))
+                    self.conn.commit()
+                    return 1
+        sql = "INSERT INTO openGroup (group_id, status, recordChatStatus) VALUES (?, ?, ?)"
+        self.cursor.execute(sql, (group_id, 0, 1))
+        self.conn.commit()
+        return 1
+
+# 关闭记录
+    async def stopRecordChat(self, group_id):
+        list = await self.getOpenGroupList()
+        for i in list:
+            if i[1] == group_id:
+                if i[3] == 0:
+                    return 2
+                sql = "update openGroup set recordChatStatus = 0 where group_id = ?"
+                self.cursor.execute(sql, (group_id,))
+                self.conn.commit()
+                return 1
+        return 0
+
+# 是否开启记录
+    async def checkRecordChat(self, group_id):
+        sql = "select * from openGroup where group_id = ? and recordChatStatus = 1"
         self.cursor.execute(sql, (group_id,))
         result = self.cursor.fetchall()
         if result:
