@@ -8,33 +8,43 @@ class Admin:
         self.conn = sqlite3.connect(self.dbPath)
         self.cursor = self.conn.cursor()
 
-    async def read(self):
-        sql = "select * from admin"
-        self.cursor.execute(sql)
+    async def read(self, group_id):
+        sql = "select * from admin where group_id = ?"
+        self.cursor.execute(sql, (group_id,))
         result = self.cursor.fetchall()
-        print(result)
         return result
 
-    async def search(self, user_id):
-        list = await self.read()
+    async def search(self, user_id, group_id):
+        list = await self.read(group_id)
         for i in list:
             if i[2] == user_id:
                 return i
         return None
 
-    async def addAdmin(self, name, user_id):
+    async def addAdmin(self, name, user_id, group_id):
+        list = await self.read(group_id)
+        for i in list:
+            if i[2] == user_id:
+                return 2
         name = name.replace("@", "")
-        sql = "INSERT INTO admin (name, user_id) VALUES (?, ?)"
-        self.cursor.execute(sql, (name, user_id))
+        print(name,  user_id, group_id)
+        sql = "INSERT INTO admin (name, user_id, group_id) VALUES (?, ?, ?)"
+        self.cursor.execute(sql, (name, user_id, group_id))
         self.conn.commit()
-        return True
+        return 1
 
-    async def deleteAdmin(self, user_id):
-        list = await self.read()
+    async def deleteAdmin(self, user_id, group_id):
+        list = await self.read(group_id)
         for i in list:
             if i[2] == user_id:
                 sql = "DELETE FROM admin WHERE user_id = ?"
                 self.cursor.execute(sql, (user_id,))
                 self.conn.commit()
-                break
-        return True
+                return True
+        return False
+    async def checkIsAdmin(self, user_id, group_id):
+        list = await self.read(group_id)
+        for i in list:
+            if i[2] == user_id:
+                return True
+        return False
