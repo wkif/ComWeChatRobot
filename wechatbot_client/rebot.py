@@ -17,6 +17,7 @@ from wechatbot_client.speechStatistics.message import MessageDb
 from wechatbot_client.networkInterface.YiYan import getYiYanApi
 from wechatbot_client.networkInterface.DouYin import getDouYinWaterMarkApi
 from wechatbot_client.networkInterface.Meng import MengApi
+from wechatbot_client.networkInterface.WeiBoHot import WeiBoHotApi
 
 
 log = logger_wrapper("WeChat Manager")
@@ -74,20 +75,20 @@ class Rebot(Adapter):
         print("发送")
         print(msg)
         return
-        # await self.action_request(
-        #     ActionRequest(action="send_message", params={
-        #         "detail_type": "group",
-        #         "group_id": group_id,
-        #         "message": [
-        #             {
-        #                 "type": "text",
-        #                 "data": {
-        #                     "text": msg
-        #                 }
-        #             }
-        #         ]
-        #     })
-        # )
+        await self.action_request(
+            ActionRequest(action="send_message", params={
+                "detail_type": "group",
+                "group_id": group_id,
+                "message": [
+                    {
+                        "type": "text",
+                        "data": {
+                            "text": msg
+                        }
+                    }
+                ]
+            })
+        )
 
 # 在群里艾特某人
     async def sedGroupMentionMsg(self, group_id, user_id):
@@ -228,6 +229,8 @@ class Rebot(Adapter):
             await self.getVideoWaterMark(group_id, messageText)
         elif "解梦" in messageText:
             await self.getMeng(group_id, messageText)
+        elif "微博热搜" in messageText:
+            await self.getWeiBoHot(group_id)
         else:
             pass
 
@@ -468,7 +471,8 @@ class Rebot(Adapter):
             result.append(RankingMap[key])
         mess = ""
         for a in result:
-            mess = mess + "✨" + a['user_name'] + "   " + str(a['number']) + "次✨\n"
+            mess = mess + "✨" + a['user_name'] + "   " +\
+                str(a['number']) + "次✨\n"
         msg = """
 ╭┈┈🎖总活跃度🎖┈┈╮
 """ + mess + """
@@ -506,7 +510,9 @@ class Rebot(Adapter):
                     title = ""
                 if videoUrl is None:
                     videoUrl = ""
-                mess = "标题： " + title + "\n" + "作者： " + author + "\n" + "视频链接： " + videoUrl + "\n" + "封面链接： " + cover + "\n" + "音频链接： " + music + "\n"
+                mess = "💌  标题： " + title + "\n" + "😀   作者： " + \
+                    author + "\n" + "🎦  视频链接： " + videoUrl + "\n" + \
+                    "📷  封面链接： " + cover + "\n" + "📼 音频链接： " + music + "\n"
                 await self.sedGroupMsg(group_id, mess)
             else:
                 await self.sedGroupMsg(group_id, res)
@@ -522,7 +528,23 @@ class Rebot(Adapter):
             data = res['data']
             mess = ""
             for i in data:
-                mess = mess + "梦到： " + i['title'] + "\n" + "解梦： " + i['text'] + "\n"
+                mess = mess + "💭梦到： " + i['title'] + "\n" +\
+                    "------------\n" + "解梦： " + i['text'] +\
+                    "\n------------\n"
+            await self.sedGroupMsg(group_id, mess)
+        else:
+            await self.sedGroupMsg(group_id, res)
+
+# 微博热搜
+    async def getWeiBoHot(self, group_id):
+        res = await WeiBoHotApi()
+        if "data" in res:
+            data = res['data']
+            mess = "下面是热搜榜单\n-----------------------------\n"
+            for i in data:
+                mess = mess + "🎈   "+i['title'] +\
+                    ":" + "热度： " + i['hot'] + "  ❤️‍🔥\n"
+            mess = mess + "-----------------------------\n"
             await self.sedGroupMsg(group_id, mess)
         else:
             await self.sedGroupMsg(group_id, res)
