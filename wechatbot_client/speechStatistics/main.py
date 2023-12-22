@@ -47,7 +47,7 @@ class SpeechStatistics:
         return False
 
 # 是否开通
-    async def changeOpenGroupList(self, group_id):
+    async def checkOpenGroupList(self, group_id):
         sql = "select * from openGroup where group_id = ? and status = 1"
         self.cursor.execute(sql, (group_id,))
         result = self.cursor.fetchall()
@@ -55,17 +55,3 @@ class SpeechStatistics:
             return True
         else:
             return False
-
-# 聊天记录
-    async def statistics(self, group_id):
-        Json_path = os.path.join(self.file_base_path, group_id, 'data.json')
-        # 判断文件存在不存在，不存在就创建
-        if not os.path.exists(Json_path):
-            with open(Json_path, 'w', encoding='utf-8') as f:
-                json.dump([], f)
-                f.close()
-        f = open(Json_path, 'r')
-        content = f.read()
-        list = json.loads(content)
-        f.close()
-        pass

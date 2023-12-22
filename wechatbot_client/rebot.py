@@ -13,6 +13,7 @@ from wechatbot_client.group.group import Group
 from wechatbot_client.sign.sign import Sign
 from wechatbot_client.consts import SUPERADMIN_USER_ID, REBOT_NAME
 from wechatbot_client.speechStatistics.main import SpeechStatistics
+from wechatbot_client.speechStatistics.message import MessageDb
 
 
 class Rebot(Adapter):
@@ -25,6 +26,7 @@ class Rebot(Adapter):
     """签到模块"""
     speechstatistics: SpeechStatistics
     """聊天统计"""
+    messagedb: MessageDb
     
     def __init__(self, action_manager):
         self.action_manager = action_manager
@@ -32,6 +34,7 @@ class Rebot(Adapter):
         self.group = Group()
         self.sign = Sign()
         self.speechstatistics = SpeechStatistics()
+        self.messagedb = MessageDb()
         self.isNotAdminMsg = "你不是管理员哦！"
         self.name = REBOT_NAME
         
@@ -94,6 +97,29 @@ class Rebot(Adapter):
             })
         )
 
+# 获取群信息
+    async def getGroupInfo(self, group_id):
+        print("group_id"+group_id)
+        return await self.action_request(
+            ActionRequest(action="get_group_info", params={
+                "group_id": group_id,
+            })
+        )
+
+# 获取群成员信息
+    async def getGroupMemberInfo(self, group_id, user_id):
+        return await self.action_request(
+            ActionRequest(action="get_user_info", params={
+                "user_id": user_id
+            })
+        )
+        
+    async def getSupportedActions(self):
+        return await self.action_request(
+            ActionRequest(action="get_supported_actions", params={
+            })
+        )
+
 # 验证是否是管理
     async def AdminVerification(self, group_id, user_id):
         isAdmin = False
@@ -109,7 +135,6 @@ class Rebot(Adapter):
 # 主处理模块
     async def deal(self, msg):
         print(msg)
-        # self.wechatManager.action_request(self.msg)
         print(msg["message"][0].type, msg["message"][0].data)
         mesageType = msg["message"][0].type
         print("mesageType："+mesageType)
@@ -126,37 +151,48 @@ class Rebot(Adapter):
         print("sender_user_id："+sender_user_id)
         print("group_id："+group_id)
         print("messageText："+messageText)
-        if messageText == "功能菜单":
+        # 聊天内容记录
+        await self.recordChat(group_id, sender_user_id, messageText,
+                              msg['time'])
+        if messageText == "功能菜单" or messageText == "功能列表":
             await self.menuList(group_id, sender_user_id)
-        if messageText == "增加管理":
+        elif messageText == "增加管理" or messageText == "新增管理":
             if await self.AdminVerification(group_id, sender_user_id):
                 if not mention_userId:
                     await self.sedGroupMsg(group_id, "艾特一下谁当管理啊")
                 else:
                     await self.addAdmin(group_id, mention_userId)
-        if messageText == "删除管理":
+        elif messageText == "删除管理":
             if await self.AdminVerification(group_id, sender_user_id):
                 if not mention_userId:
                     await self.sedGroupMsg(group_id, "艾特一下删除哪个管理呀")
                 else:
                     await self.deleteAdmin(group_id, mention_userId)
-        if messageText == "管理列表":
+        elif messageText == "管理列表":
             message = "下面是管理员列表：\n"
             adminList = await self.admin.read()
             for admin in adminList:
                 message = message + "用户名：" + admin[1] + "\n"
             await self.sedGroupMsg(group_id, message)
-        if messageText == "查看退群成员":
+        elif messageText == "查看退群成员":
             if await self.AdminVerification(group_id, sender_user_id):
                 await self.getQuitGroupList(group_id)
-        if messageText == "签到":
+        elif messageText == "签到":
             await self.signIn(group_id, sender_user_id)
-        if messageText == "开通聊天数据统计":
+        elif messageText == "开通聊天数据统计":
             if await self.AdminVerification(group_id, sender_user_id):
                 await self.addOpenGroup(group_id)
-        if messageText == "关闭聊天数据统计":
+        elif messageText == "关闭聊天数据统计":
             if await self.AdminVerification(group_id, sender_user_id):
                 await self.deleteOpenGroup(group_id)
+        elif messageText == "日活排行":
+            await self.getMessageRanking_today(group_id)
+        elif messageText == "月活排行":
+            await self.getMessageRanking_month(group_id)
+        elif messageText == "总活排行":
+            await self.getMessageRanking_all(group_id)
+        else:
+            pass
 
     async def menuList(self, group_id, user_id):
         message = '''
@@ -169,7 +205,6 @@ class Rebot(Adapter):
         1. 口令：艾特我 管理列表；\n
         '''
         await self.sedGroupMentionMsg(group_id, user_id)
-        
         await self.sedGroupMsg(group_id, message)
 
 # 增加管理员
@@ -262,7 +297,7 @@ class Rebot(Adapter):
 
 # 新增聊天记录群组
     async def addOpenGroup(self, group_id):
-        currentStatus = await self.speechstatistics.changeOpenGroupList(group_id)
+        currentStatus = await self.speechstatistics.checkOpenGroupList(group_id)
         if currentStatus:
             await self.sedGroupMsg(group_id, "已经开通过啦！")
             return
@@ -275,7 +310,7 @@ class Rebot(Adapter):
 
 # 关闭群组聊天记录
     async def deleteOpenGroup(self, group_id):
-        currentStatus = await self.speechstatistics.changeOpenGroupList(group_id)
+        currentStatus = await self.speechstatistics.checkOpenGroupList(group_id)
         if not currentStatus:
             await self.sedGroupMsg(group_id, "本来就没开通啊")
             return
@@ -285,3 +320,82 @@ class Rebot(Adapter):
         else:
             await self.sedGroupMsg(group_id, "哦豁，关闭失败，老大来看看")
             await self.sedGroupMentionMsg(group_id, user_id=SUPERADMIN_USER_ID)
+
+# 聊天内容记录
+    async def recordChat(self, group_id, sender_user_id, message, time):
+        if await self.speechstatistics.checkOpenGroupList(group_id):
+            detail_type = "group"
+            group_name = ""
+            groupInfo = await self.getGroupInfo(group_id)
+            print(groupInfo)
+            if groupInfo and groupInfo.dict()['retcode'] == 0:
+                group_name = groupInfo.dict()['data']['group_name']
+            sender_user_name = ""
+            userInfo = await self.getGroupMemberInfo(group_id, sender_user_id)
+            if userInfo and userInfo.dict()['retcode'] == 0:
+                sender_user_name = userInfo.dict()['data']['user_name']
+            await self.messagedb.listenMessage(sender_user_id,
+                                               sender_user_name, message, time,
+                                               detail_type, group_id,
+                                               group_name)
+        return True
+
+# 日活排行
+    async def getMessageRanking_today(self, group_id):
+        RankingMap = await self.messagedb.getMessageRanking_today(group_id)
+        result = []
+        for key in RankingMap:
+            if not RankingMap[key]["user_name"]:
+                numberInfo = await self.getGroupMemberInfo(group_id, key)
+                if numberInfo and numberInfo.dict()['retcode'] == 0:
+                    RankingMap[key]["user_name"] = numberInfo.dict()['data']['user_name']
+            result.append(RankingMap[key])
+        mess = ""
+        for a in result:
+            mess = mess + "✨" + a['user_name'] + " ： " + str(a['number']) + "次✨\n"
+        msg = """
+╭┈┈🎖日活排行🎖┈┈╮
+""" + mess + """
+╰┈┈┈┈┈┈┈┈┈╯
+"""
+        await self.sedGroupMsg(group_id, msg)
+
+# 本月排行
+    async def getMessageRanking_month(self, group_id):
+        RankingMap = await self.messagedb.getMessageRanking_month(group_id)
+        result = []
+        for key in RankingMap:
+            if not RankingMap[key]["user_name"]:
+                numberInfo = await self.getGroupMemberInfo(group_id, key)
+                if numberInfo and numberInfo.dict()['retcode'] == 0:
+                    RankingMap[key]["user_name"] = numberInfo.dict()['data']['user_name']
+            result.append(RankingMap[key])
+        mess = ""
+        for a in result:
+            mess = mess + "✨" + a['user_name'] + " ： " + str(a['number']) + "次✨\n"
+        msg = """
+╭┈┈🎖月活排行🎖┈┈╮
+""" + mess + """
+╰┈┈┈┈┈┈┈┈┈╯
+"""
+        await self.sedGroupMsg(group_id, msg)
+
+# 总活跃排行
+    async def getMessageRanking_all(self, group_id):
+        RankingMap = await self.messagedb.getMessageRanking_all(group_id)
+        result = []
+        for key in RankingMap:
+            if not RankingMap[key]["user_name"]:
+                numberInfo = await self.getGroupMemberInfo(group_id, key)
+                if numberInfo and numberInfo.dict()['retcode'] == 0:
+                    RankingMap[key]["user_name"] = numberInfo.dict()['data']['user_name']
+            result.append(RankingMap[key])
+        mess = ""
+        for a in result:
+            mess = mess + "✨" + a['user_name'] + "   " + str(a['number']) + "次✨\n"
+        msg = """
+╭┈┈🎖总活排行🎖┈┈╮
+""" + mess + """
+╰┈┈┈┈┈┈┈┈┈╯
+"""
+        await self.sedGroupMsg(group_id, msg)
