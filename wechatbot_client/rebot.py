@@ -1,3 +1,4 @@
+import re
 from wechatbot_client.action_manager import (
     ActionManager,
     ActionRequest,
@@ -13,6 +14,8 @@ from wechatbot_client.sign.sign import Sign
 from wechatbot_client.consts import SUPERADMIN_USER_ID, REBOT_NAME
 from wechatbot_client.speechStatistics.main import SpeechStatistics
 from wechatbot_client.speechStatistics.message import MessageDb
+from wechatbot_client.networkInterface.YiYan import getYiYanApi
+from wechatbot_client.networkInterface.DouYin import getDouYinWaterMarkApi
 
 
 log = logger_wrapper("WeChat Manager")
@@ -218,6 +221,10 @@ class Rebot(Adapter):
             await self.getMessageRanking_month(group_id)
         elif messageText == "总活跃度":
             await self.getMessageRanking_all(group_id)
+        elif messageText == "一言":
+            await self.getYiYan(group_id)
+        elif "去水印" in messageText:
+            await self.getVideoWaterMark(group_id, messageText)
         else:
             pass
 
@@ -465,3 +472,41 @@ class Rebot(Adapter):
 ╰┈┈┈┈┈┈┈┈┈╯
 """
         await self.sedGroupMsg(group_id, msg)
+
+# 一言
+    async def getYiYan(self, group_id):
+        res = await getYiYanApi()
+        await self.sedGroupMsg(group_id, res)
+
+# 去水印
+    async def getVideoWaterMark(self, group_id, messageText):
+        # 从 messageText 提取https网址
+        urls = re.findall(r'https?://\S+', messageText)
+        if len(urls):
+            douyinurl = urls[-1]
+            res = await getDouYinWaterMarkApi(douyinurl)
+            if 'data' in res:
+                data = res['data']
+                title = data['title']
+                author = data['author']
+                videoUrl = data['url']
+                cover = data['cover']
+                music = data['music']['url']
+                # 为 none 时不显示
+                if music is None:
+                    music = ""
+                if cover is None:
+                    cover = ""
+                if author is None:
+                    author = ""
+                if title is None:
+                    title = ""
+                if videoUrl is None:
+                    videoUrl = ""
+                mess = "标题： " + title + "\n" + "作者： " + author + "\n" + "视频链接： " + videoUrl + "\n" + "封面链接： " + cover + "\n" + "音频链接： " + music + "\n"
+                await self.sedGroupMsg(group_id, mess)
+            else:
+                await self.sedGroupMsg(group_id, res)
+            
+        else:
+            await self.sedGroupMsg(group_id, "没有找到抖音链接")
