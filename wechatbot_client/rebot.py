@@ -2,18 +2,20 @@ from wechatbot_client.action_manager import (
     ActionManager,
     ActionRequest,
     ActionResponse,
-    WsActionRequest,
-    WsActionResponse,
     check_action_params,
 )
 from wechatbot_client.typing import overrides
 from wechatbot_client.wechat.adapter import Adapter
+from wechatbot_client.utils import logger_wrapper
 from wechatbot_client.admin import Admin
 from wechatbot_client.group.group import Group
 from wechatbot_client.sign.sign import Sign
 from wechatbot_client.consts import SUPERADMIN_USER_ID, REBOT_NAME
 from wechatbot_client.speechStatistics.main import SpeechStatistics
 from wechatbot_client.speechStatistics.message import MessageDb
+
+
+log = logger_wrapper("WeChat Manager")
 
 
 class Rebot(Adapter):
@@ -138,13 +140,16 @@ class Rebot(Adapter):
 # 主处理模块
     async def deal(self, msg):
         print(msg)
-        print(msg["message"][0].type, msg["message"][0].data)
-        mesageType = msg["message"][0].type
-        print("mesageType："+mesageType)
+        mesageType = ""
         # if mesageType != "mention":
         #     return
+        if "message" in msg:
+            mesageType = msg["message"][0].type
+            print("mesageType："+mesageType)
         sender_user_id = msg['user_id']
-        if mesageType == "mention":
+        if msg['detail_type'] == "wx.get_group_redbag":
+            messageText = "wx.get_group_redbag"
+        elif mesageType == "mention":
             mention_userId = msg["message"][0].data['user_id']
             print("mention_userId:"+mention_userId)
             messageText = msg["message"][1].data['text']
@@ -216,6 +221,7 @@ class Rebot(Adapter):
         else:
             pass
 
+# 菜单
     async def menuList(self, group_id, user_id):
         message = '''
         -------功能菜单-------\n
@@ -277,9 +283,10 @@ class Rebot(Adapter):
         ))
         if response.dict()['retcode'] == 0:
             current_number_list = response.dict()['data']
+            await self.updateAllNumberList(group_id)
             quitList = await self.group.getQuitGroupList(
                 group_id, current_number_list
-            )
+            ) 
             if not len(quitList):
                 await self.sedGroupMsg(group_id, "没有退群历史记录，你给大伙退一个试试哈哈哈")
                 return
@@ -288,8 +295,25 @@ class Rebot(Adapter):
                 massage = massage + i['user_name'] + '\n'
             await self.sedGroupMsg(group_id, massage)
             return
-# 签到
 
+# 更新群历史成员
+    async def updateAllNumberList(self, group_id):
+        current_number_list = []
+        response = await self.action_request(ActionRequest(
+            action="get_group_member_list",
+            params={"group_id": group_id}
+        ))
+        if response.dict()['retcode'] == 0:
+            current_number_list = response.dict()['data']
+            status = await self.group.updateAllNumberList(
+                group_id, current_number_list
+            )
+            if status:
+                log("SUCCESS", "更新群"+group_id+"历史成员成功")
+            else:
+                log("ERROR", "更新群"+group_id+"历史成员失败")
+
+# 签到
     async def signIn(self, group_id, user_id):
         res = await self.sign.signIn(user_id)
         if res['status'] == 0:
@@ -382,7 +406,7 @@ class Rebot(Adapter):
                                                group_name)
         return True
 
-# 日活排行
+# 日活跃度
     async def getMessageRanking_today(self, group_id):
         RankingMap = await self.messagedb.getMessageRanking_today(group_id)
         result = []
@@ -402,7 +426,7 @@ class Rebot(Adapter):
 """
         await self.sedGroupMsg(group_id, msg)
 
-# 本月排行
+# 月活跃度
     async def getMessageRanking_month(self, group_id):
         RankingMap = await self.messagedb.getMessageRanking_month(group_id)
         result = []
@@ -422,7 +446,7 @@ class Rebot(Adapter):
 """
         await self.sedGroupMsg(group_id, msg)
 
-# 总活跃排行
+# 总活跃度
     async def getMessageRanking_all(self, group_id):
         RankingMap = await self.messagedb.getMessageRanking_all(group_id)
         result = []
