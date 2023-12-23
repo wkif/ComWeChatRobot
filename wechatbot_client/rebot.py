@@ -24,6 +24,7 @@ from wechatbot_client.networkInterface.Meng import MengApi
 from wechatbot_client.networkInterface.WeiBoHot import WeiBoHotApi
 from wechatbot_client.networkInterface.Weather import WeatherApi
 from wechatbot_client.networkInterface.Morning import MorningApi
+from wechatbot_client.networkInterface.Today import TodayApi
 
 log = logger_wrapper("WeChat Manager")
 
@@ -148,6 +149,32 @@ class Rebot(Adapter):
             })
         )
 
+# 上传文件
+    async def upload_file(self, type, name, url=None, path=None, data=None):
+        params = {}
+        if type == "url":
+            params = {
+                "type": "url",
+                "name": name,
+                "url": url
+            }
+        if type == "path":
+            params = {
+                "type": "path",
+                "name": name,
+                "path": path
+            }
+        if type == "data":
+            params = {
+                "type": "data",
+                "name": name,
+                "data": data
+            }
+        # print(params)
+        return await self.action_request(
+            ActionRequest(action="upload_file", params=params)
+        )
+
 # 验证是否是管理
     async def AdminVerification(self, group_id, user_id):
         return await self.admin.checkIsAdmin(user_id, group_id)
@@ -244,6 +271,8 @@ class Rebot(Adapter):
             adminList = await self.admin.read(group_id)
             for admin in adminList:
                 message = message + "用户名：" + admin[3] + "\n"
+            today = await TodayApi()
+            message += today
             await self.sedGroupMsg(group_id, message)
         # 艾特成员功能区--------------end
         if not await self.speechstatistics.checkOpenGroupList(group_id):
@@ -289,8 +318,8 @@ class Rebot(Adapter):
             await self.addFood(sender_user_id, group_id, messageText, type=3)
         elif "推荐零食" in messageText:
             await self.addFood(sender_user_id, group_id, messageText, type=4)
-        elif "吃什么" in messageText:
-            await self.getRandomFood(group_id)
+        elif "早上好" in messageText:
+            await self.MorningNight(group_id)
         else:
             pass
 
@@ -382,10 +411,12 @@ class Rebot(Adapter):
             if not len(quitList):
                 await self.sedGroupMsg(group_id, "没有退群历史记录，你给大伙退一个试试哈哈哈")
                 return
-            massage = '以下是退群历史成员：\n'
+            message = '以下是退群历史成员：\n'
             for i in quitList:
-                massage = massage + i['user_name'] + '\n'
-            await self.sedGroupMsg(group_id, massage)
+                message = message + i['user_name'] + '\n'
+            today = await TodayApi()
+            message += today
+            await self.sedGroupMsg(group_id, message)
             return
 
 # 更新群历史成员
@@ -434,6 +465,8 @@ class Rebot(Adapter):
             """.format(str(res['count']), str(res['sign_count']))
         else:
             msg = "签到失败"
+        today = await TodayApi()
+        msg += today
         await self.sedGroupMsg(group_id, msg)
 
 # 开通机器人
@@ -522,6 +555,8 @@ class Rebot(Adapter):
 """ + mess + """
 ╰┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈╯
 """
+        today = await TodayApi()
+        msg += today
         await self.sedGroupMsg(group_id, msg)
 
 # 月活跃度
@@ -543,6 +578,8 @@ class Rebot(Adapter):
 """ + mess + """
 ╰┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈╯
 """
+        today = await TodayApi()
+        msg += today
         await self.sedGroupMsg(group_id, msg)
 
 # 总活跃度
@@ -565,6 +602,8 @@ class Rebot(Adapter):
 """ + mess + """
 ╰┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈╯
 """
+        today = await TodayApi()
+        msg += today
         await self.sedGroupMsg(group_id, msg)
 
 # 一言
@@ -650,20 +689,24 @@ class Rebot(Adapter):
             mess = city + "🌕现在"+data['now']['text'] +\
                 ",🌡温度"+data['now']['temperature'] +\
                 ",⏱更新时间："+formatted_time
+            today = await TodayApi()
+            mess += today
             await self.sedGroupMsg(group_id, mess)
         else:
             await self.sedGroupMsg(group_id, res)
 
-# # 早晚招呼
-#     async def MorningNight(self, group_id):
-#         imgData = await MorningApi()
-#         # 当前时间戳
-#         time = datetime.now()
-#         name = "imgData" + str(time)
-#         dataId = await self.file_manager.cache_file_id_from_url(imgData,
-#                                                           name, headers=None)
-#         print(dataId)
-#         pass
+# 早晚招呼
+    async def MorningNight(self, group_id):
+        imgData = await MorningApi()
+        # 当前时间戳
+        time = datetime.now()
+        name = "imgData" + str(time)
+        print("type")
+        print(type(imgData))
+        dataId = await self.upload_file(type="data", name=name, data=imgData)
+        print(dataId)
+        pass
+
 #  吃什么
     async def getRandomFood(self, group_id):
         current_time = datetime.now().time()
@@ -671,7 +714,7 @@ class Rebot(Adapter):
         morning_end = datetime.strptime('10:00:00', '%H:%M:%S').time()
         noon_start = datetime.strptime('10:00:00', '%H:%M:%S').time()
         noon_end = datetime.strptime('15:00:00', '%H:%M:%S').time()
-        type  = 4
+        type = 4
         msg = ""
         if morning_start <= current_time < morning_end:
             type = 1
@@ -707,11 +750,3 @@ class Rebot(Adapter):
             await self.sedGroupMsg(group_id, "新增成功🎉")
         else:
             await self.sedGroupMsg(group_id, "已经有啦")
-    # 删除 美食
-    async def deleteFood(self, group_id, messageText):
-        food = messageText.replace("删除美食", "").replace(" ","")
-        status = await self.food.deleteFood(food)
-        if status:
-            await self.sedGroupMsg(group_id, "删除成功🎉")
-        else:
-            await self.sedGroupMsg(group_id, "好像没有这个菜？")
