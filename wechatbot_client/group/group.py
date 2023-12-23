@@ -25,9 +25,19 @@ class Group:
             print("all_number_list")
             print(all_number_id_list)
             # 将 current_number_list 中存在 all_number_id_list 中不存在的成员添加到 all_number_id_list
+            # 根据user_id来判断成员是否存在
             for number in current_number_list:
-                if number not in all_number_id_list:
+                user_exists = False
+                for member in all_number_id_list:
+                    if number['user_id'] == member['user_id']:
+                        user_exists = True
+                        break
+                if not user_exists:
                     all_number_id_list.append(number)
+            
+            # for number in current_number_list:
+            #     if number not in all_number_id_list:
+            #         all_number_id_list.append(number)
             # 更新 all_number_id_list
             sql = "update groupDB set all_number_id_list = ? where group_id = ?"
             self.groupCursor.execute(sql, (json.dumps(all_number_id_list), group_id))
@@ -49,9 +59,20 @@ class Group:
         if all_number_id_list:
             all_number_id_list = json.loads(all_number_id_list[0][0])
             # 将在 all_number_id_list 中但不在 current_number_list 中的成员添加到 QuitGroupList
+            # 根据user_id来判断成员是否存在
             for number in all_number_id_list:
-                if number not in current_number_list:
+                user_exists = False
+                for member in current_number_list:
+                    if number['user_id'] == member['user_id']:
+                        print(member['user_id'])
+                        user_exists = True
+                        break
+                if not user_exists:
                     QuitGroupList.append(number)
+            
+            # for number in all_number_id_list:
+            #     if number not in current_number_list:
+            #         QuitGroupList.append(number)
             return QuitGroupList
         else:
             return QuitGroupList

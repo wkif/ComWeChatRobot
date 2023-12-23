@@ -132,7 +132,7 @@ class Rebot(Adapter):
                 "group_id": group_id
             })
         )
-        
+
     async def getSupportedActions(self):
         return await self.action_request(
             ActionRequest(action="get_supported_actions", params={
@@ -177,54 +177,78 @@ class Rebot(Adapter):
         # if sender_user_id != SUPERADMIN_USER_ID and mesageType == "mention":
         #     # await self.sedGroupMsg(group_id, "老大还在测试，别急哈！")
         #     return
+        # 特定命令区----------------start
         if messageText == "开通记录":
             if await self.AdminVerification(group_id, sender_user_id):
                 await self.startRecordChat(group_id)
+            else:
+                await self.sedGroupMsg(group_id, self.isNotAdminMsg)
         if messageText == "关闭记录":
             if await self.AdminVerification(group_id, sender_user_id):
                 await self.stopRecordChat(group_id)
+            else:
+                await self.sedGroupMsg(group_id, self.isNotAdminMsg)
         if messageText == "开通机器人":
             if await self.AdminVerification(group_id, sender_user_id):
                 await self.addOpenGroup(group_id)
+            else:
+                await self.sedGroupMsg(group_id, self.isNotAdminMsg)
         if messageText == "关闭机器人":
             if await self.AdminVerification(group_id, sender_user_id):
                 await self.deleteOpenGroup(group_id)
-        if not await self.speechstatistics.checkOpenGroupList(group_id):
-            print(group_id+"没有开通功能,不处理")
-            # if mesageType == "mention" and mention_userId  == REBOT_USER_ID:
-            return
-        if messageText == "功能菜单" or messageText == "功能列表":
+            else:
+                await self.sedGroupMsg(group_id, self.isNotAdminMsg)
+
+        if "功能菜单" in messageText or "功能列表" in messageText:
             await self.menuList(group_id, sender_user_id)
+        # 特定命令区----------------end
+        # 艾特成员功能区--------------start
         elif messageText == "增加管理" or messageText == "新增管理":
             if await self.AdminVerification(group_id, sender_user_id) or sender_user_id == SUPERADMIN_USER_ID:
-                if not mention_userId:
-                    await self.sedGroupMsg(group_id, "艾特一下谁当管理啊")
+                if sender_user_id == SUPERADMIN_USER_ID and not mention_userId:
+                    await self.addAdmin(group_id, SUPERADMIN_USER_ID)
                 else:
-                    await self.addAdmin(group_id, mention_userId)
+                    if not mention_userId:
+                        await self.sedGroupMsg(group_id, "艾特一下谁当管理啊")
+                    else:
+                        await self.addAdmin(group_id, mention_userId)
         elif messageText == "删除管理":
             if await self.AdminVerification(group_id, sender_user_id) or sender_user_id == SUPERADMIN_USER_ID:
                 if not mention_userId:
                     await self.sedGroupMsg(group_id, "艾特一下删除哪个管理呀")
                 else:
                     await self.deleteAdmin(group_id, mention_userId)
-        elif messageText == "管理列表":
+        if "管理列表" in messageText:
             message = "下面是管理员列表：\n"
-            adminList = await self.admin.read()
+            adminList = await self.admin.read(group_id)
             for admin in adminList:
-                message = message + "用户名：" + admin[1] + "\n"
+                message = message + "用户名：" + admin[3] + "\n"
             await self.sedGroupMsg(group_id, message)
-        elif messageText == "查看退群成员":
+        # 艾特成员功能区--------------end
+        if not await self.speechstatistics.checkOpenGroupList(group_id):
+            print(group_id+"没有开通功能,不处理")
+            # if mesageType == "mention" and mention_userId  == REBOT_USER_ID:
+            return
+        # 以下功能需要开通机器人才执行-----
+        # 以下功能需要叫机器人名字
+        # if REBOT_NAME not in messageText:
+        #     # 没有叫我，不做处理
+        #     print("没有叫我，不做处理")
+        #     return
+        elif "查看退群成员" in messageText:
             if await self.AdminVerification(group_id, sender_user_id):
                 await self.getQuitGroupList(group_id)
-        elif messageText == "签到":
+            else:
+                await self.sedGroupMsg(group_id, self.isNotAdminMsg)
+        elif "签到" in messageText:
             await self.signIn(group_id, sender_user_id)
-        elif messageText == "日活跃度":
+        elif "日活" in messageText:
             await self.getMessageRanking_today(group_id)
-        elif messageText == "月活跃度":
+        elif "月活" in messageText:
             await self.getMessageRanking_month(group_id)
-        elif messageText == "总活跃度":
+        elif "总活" in messageText:
             await self.getMessageRanking_all(group_id)
-        elif messageText == "一言":
+        elif "一言" in messageText:
             await self.getYiYan(group_id)
         elif "去水印" in messageText:
             await self.getVideoWaterMark(group_id, messageText)
@@ -252,13 +276,32 @@ class Rebot(Adapter):
 # 菜单
     async def menuList(self, group_id, user_id):
         message = '''
-        -------功能菜单-------\n
-        ----群管理特权区----\n
-        1. 口令：查看退群成员；\n
-        2. 口令：艾特新管理员 增加管理；\n
-        3. 口令：艾特管理员 删除管理；\n
-        ----群成员功能区----\n
-        1. 口令：艾特我 管理列表；\n
+|       你好，我是       |
+|   ''' + REBOT_NAME + '''   |
+|     可以帮你管理群聊    |
+|-------功能菜单-------|
+|----群管理特权区----|
+|1. 开通机器人；          |
+|2. 关闭机器人；          |
+|3. 开通记录；            |
+|4. 关闭通记录；          |
+|5. @某某 增加管理；     |
+|6. @某某 删除管理；     |
+|7. 查看退群成员；       |
+|----群成员功能区----|
+|1. 签到；                 |
+|2. 日活；                 |
+|3. 月活；                 |
+|4. 总活；                 |
+|5. 一言；                 |
+|6. 去水印 + 抖音等分享链接；|
+|7. 解梦 + 梦语；        |
+|8. 微博热搜；           |
+|9. 城市+天气；（eg:北京天气）|
+|10.吃什么；(eg:今天吃什么) |
+|11.推荐早餐+菜名；（eg:推荐早餐曼龄粥）|
+|12.推荐午餐+菜名；      |
+|13.推荐晚餐+菜名；      |
         '''
         await self.sedGroupMentionMsg(group_id, user_id)
         await self.sedGroupMsg(group_id, message)
@@ -314,7 +357,7 @@ class Rebot(Adapter):
             await self.updateAllNumberList(group_id)
             quitList = await self.group.getQuitGroupList(
                 group_id, current_number_list
-            ) 
+            )
             if not len(quitList):
                 await self.sedGroupMsg(group_id, "没有退群历史记录，你给大伙退一个试试哈哈哈")
                 return
@@ -343,17 +386,21 @@ class Rebot(Adapter):
 
 # 签到
     async def signIn(self, group_id, user_id):
+        sender_user_name = ""
+        userInfo = await self.getGroupMemberInfo(group_id, user_id)
+        if userInfo and userInfo.dict()['retcode'] == 0:
+            sender_user_name = userInfo.dict()['data']['user_name']
         res = await self.sign.signIn(user_id)
         if res['status'] == 0:
             # msg = "今天已经签到过了,明天再来吧；累计签到" + str(res['sign_count']) +\
             #     "天;"+"连续签到" + str(res['count']) + "天"
             msg = """
-            今天已经签到过了,明天再来吧\n
+            {},今天已经签到过了,明天再来吧\n
             ╭┈┈🏡签到🏡┈┈╮
             🗒连续签到：{} \n
             🗓累计签到：{} \n
             ╰┈┈┈┈┈┈┈┈┈╯
-            """.format(str(res['count']), str(res['sign_count']))
+            """.format(sender_user_name, str(res['count']), str(res['sign_count']))
         elif res['status'] == 1:
             # msg = "签到成功!累计签到" + str(res['sign_count']) +\
             #     "天;"+"连续签到" + str(res['count']) + "天"
@@ -446,7 +493,7 @@ class Rebot(Adapter):
             result.append(RankingMap[key])
         mess = ""
         # result取前10
-        result  = result[0:20]
+        result = result[0:20]
         for a in result:
             mess = mess + "✨" + a['user_name'] + " ： 发言" + str(a['number']) + "次✨\n"
         msg = """
