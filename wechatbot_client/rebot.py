@@ -28,6 +28,7 @@ from wechatbot_client.networkInterface.WeiBoHot import WeiBoHotApi
 from wechatbot_client.networkInterface.Weather import WeatherApi
 from wechatbot_client.networkInterface.Morning import MorningApi
 from wechatbot_client.networkInterface.Today import TodayApi
+from wechatbot_client.networkInterface.Music import MusicApi
 
 log = logger_wrapper("WeChat Manager")
 
@@ -86,9 +87,9 @@ class Rebot(Adapter):
 
 # 发送群消息
     async def sedGroupMsg(self, group_id, msg):
-        print("发送")
-        print(msg)
-        return
+        # print("发送")
+        # print(msg)
+        # return
         await self.action_request(
             ActionRequest(action="send_message", params={
                 "detail_type": "group",
@@ -122,7 +123,7 @@ class Rebot(Adapter):
         )
 
 # 清除缓存
-    async def clean_cache(self, days: int = 3):
+    async def clean_cache(self, days: int = 0):
         return await self.action_request(
             ActionRequest(action="wx.clean_cache", params={
                 "days": days
@@ -260,7 +261,7 @@ class Rebot(Adapter):
                 if res.dict()['retcode'] == 0:
                     num = res.dict()['data']
                     await self.sedGroupMsg(group_id,
-                                           "已经清除3天缓存,共"+str(num)+"个文件")
+                                           "已经清除全部缓存,共"+str(num)+"个文件")
                 else:
                     log("ERROR", "缓存清理异常："+json.dumps(res))
                     await self.sedGroupMsg(group_id, "清理失败，看看日志咋回事")
@@ -338,8 +339,10 @@ class Rebot(Adapter):
             await self.addFood(sender_user_id, group_id, messageText, type=3)
         elif "推荐零食" in messageText:
             await self.addFood(sender_user_id, group_id, messageText, type=4)
-        elif "早上好" in messageText:
-            await self.MorningNight(group_id)
+        elif "听歌" in messageText:
+            await self.getMusic(group_id, messageText)
+        # elif "早上好" in messageText:
+        #     await self.MorningNight(group_id)
         else:
             pass
 
@@ -354,7 +357,7 @@ class Rebot(Adapter):
 |1. 开通机器人；          |
 |2. 关闭机器人；          |
 |3. 开通记录；            |
-|4. 关闭通记录；          |
+|4. 关闭记录；          |
 |5. @某某 增加管理；     |
 |6. @某某 删除管理；     |
 |7. 查看退群成员；       |
@@ -372,6 +375,7 @@ class Rebot(Adapter):
 |11.推荐早餐+菜名；（eg:推荐早餐曼龄粥）|
 |12.推荐午餐+菜名；      |
 |13.推荐晚餐+菜名；      |
+|14.听歌+歌名；（eg:听歌稻香）|
         '''
         await self.sedGroupMentionMsg(group_id, user_id)
         await self.sedGroupMsg(group_id, message)
@@ -573,7 +577,7 @@ class Rebot(Adapter):
         msg = """
 ╭┈┈🎖日活跃度(top 20)🎖┈┈╮
 """ + mess + """
-╰┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈╯
+╰┈┈┈┈┈┈┈┈┈┈╯
 """
         today = await TodayApi()
         msg += today
@@ -596,7 +600,7 @@ class Rebot(Adapter):
         msg = """
 ╭┈┈🎖月活跃度(top 20)🎖┈┈╮
 """ + mess + """
-╰┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈╯
+╰┈┈┈┈┈┈┈┈┈┈╯
 """
         today = await TodayApi()
         msg += today
@@ -620,7 +624,7 @@ class Rebot(Adapter):
         msg = """
 ╭┈┈🎖总活跃度(top 20)🎖┈┈╮
 """ + mess + """
-╰┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈╯
+╰┈┈┈┈┈┈┈┈┈┈╯
 """
         today = await TodayApi()
         msg += today
@@ -640,11 +644,21 @@ class Rebot(Adapter):
             res = await getDouYinWaterMarkApi(douyinurl)
             if 'data' in res:
                 data = res['data']
-                title = data['title']
-                author = data['author']
-                videoUrl = data['url']
-                cover = data['cover']
-                music = data['music']['url']
+                if "title" in data:
+                    title = data['title']
+                if "author" in data:
+                    author = data['author']
+                if 'url' in data:
+                    videoUrl = data['url']
+                if 'cover' in data:
+                    cover = data['cover']
+                if 'music' in data:
+                    if 'url' in data['music']:
+                        music = data['music']['url']
+                    else:
+                        music = None
+                else:
+                    music = None
                 # 为 none 时不显示
                 if music is None:
                     music = ""
@@ -787,3 +801,20 @@ class Rebot(Adapter):
             await self.sedGroupMsg(group_id, "新增成功🎉")
         else:
             await self.sedGroupMsg(group_id, "已经有啦")
+
+# 音乐
+    async def getMusic(self, group_id, messageText):
+        musicName = messageText.replace("听歌", "").replace(" ", "")
+        data = await MusicApi(musicName)
+        print(data)
+        if "title" in data:
+            url = data['url']
+            name = data["title"] + '.mp3'
+            res = await self.upload_file(type="url", name=name, url=url)
+            file_id = ""
+            if res.dict()['retcode'] == 0:
+                file_id = res.dict()['data']['file_id']
+            print(file_id)
+            await self.sedFileMsg(group_id, file_id)
+        else:
+            await self.sedGroupMsg(group_id, data)
