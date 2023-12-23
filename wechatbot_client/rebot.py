@@ -11,6 +11,8 @@ from wechatbot_client.action_manager import (
     check_action_params,
 )
 from wechatbot_client.file_manager import FileCache, FileManager
+from wechatbot_client.networkInterface.Moyunew import MoyuApi
+from wechatbot_client.networkInterface.New import NewsApi
 from wechatbot_client.typing import overrides
 from wechatbot_client.wechat.adapter import Adapter
 from wechatbot_client.utils import logger_wrapper
@@ -29,6 +31,7 @@ from wechatbot_client.networkInterface.Weather import WeatherApi
 from wechatbot_client.networkInterface.Morning import MorningApi
 from wechatbot_client.networkInterface.Today import TodayApi
 from wechatbot_client.networkInterface.Music import MusicApi
+from wechatbot_client.networkInterface.Kfc import KfcApi
 
 log = logger_wrapper("WeChat Manager")
 
@@ -114,6 +117,23 @@ class Rebot(Adapter):
                 "message": [
                     {
                         "type": "file",
+                        "data": {
+                            "file_id": file_id
+                        }
+                    }
+                ]
+            })
+        )
+
+# 发送图片
+    async def sedImageMsg(self, group_id, file_id):
+        return await self.action_request(
+            ActionRequest(action="send_message", params={
+                "detail_type": "group",
+                "group_id": group_id,
+                "message": [
+                    {
+                        "type": "image",
                         "data": {
                             "file_id": file_id
                         }
@@ -329,7 +349,7 @@ class Rebot(Adapter):
             await self.getWeiBoHot(group_id)
         elif "天气" in messageText:
             await self.getWeather(group_id, messageText)
-        elif "吃什么" in messageText:
+        elif "吃什么" in messageText or "吃点啥" in messageText:
             await self.getRandomFood(group_id)
         elif "推荐早餐" in messageText:
             await self.addFood(sender_user_id, group_id, messageText, type=1)
@@ -341,8 +361,12 @@ class Rebot(Adapter):
             await self.addFood(sender_user_id, group_id, messageText, type=4)
         elif "听歌" in messageText:
             await self.getMusic(group_id, messageText)
-        # elif "早上好" in messageText:
-        #     await self.MorningNight(group_id)
+        elif "星期四" in messageText:
+            await self.getKfc(group_id, messageText)
+        elif "日报" in messageText:
+            await self.getMoyuApi(group_id)
+        elif "新闻" in messageText:
+            await self.getNews(group_id)
         else:
             pass
 
@@ -376,6 +400,9 @@ class Rebot(Adapter):
 |12.推荐午餐+菜名；      |
 |13.推荐晚餐+菜名；      |
 |14.听歌+歌名；（eg:听歌稻香）|
+|15.新闻；（eg:新闻）|
+|16.星期四（eg:星期四）|
+|17.日报）|
         '''
         await self.sedGroupMentionMsg(group_id, user_id)
         await self.sedGroupMsg(group_id, message)
@@ -742,21 +769,21 @@ class Rebot(Adapter):
         else:
             await self.sedGroupMsg(group_id, res)
 
-# 早晚招呼
-    async def MorningNight(self, group_id):
-        # imgData = await MorningApi()
+# 新闻
+    async def getNews(self, group_id):
+        await NewsApi()
         # 当前时间戳
         time = datetime.now()
-        name = "imgData" + str(time)
+        name = "news" + str(time)
         # print("type")
         # print(type(imgData))
-        path = os.path.join(os.getcwd(), "data/test/video.mp4")
+        path = os.path.join(os.getcwd(), "file_cache/temp/news.png")
         res = await self.upload_file(type="path", name=name, path=path)
         file_id = ""
         if res.dict()['retcode'] == 0:
             file_id = res.dict()['data']['file_id']
         print(file_id)
-        await self.sedFileMsg(group_id, file_id)
+        await self.sedImageMsg(group_id, file_id)
 
 #  吃什么
     async def getRandomFood(self, group_id):
@@ -818,3 +845,21 @@ class Rebot(Adapter):
             await self.sedFileMsg(group_id, file_id)
         else:
             await self.sedGroupMsg(group_id, data)
+
+# kfc
+    async def getKfc(self, group_id, messageText):
+        data = await KfcApi()
+        print(data)
+        await self.sedGroupMsg(group_id, data)
+
+# 日报
+    async def getMoyuApi(self, group_id):
+        url = await MoyuApi()
+        print(url)
+        name = "日报"
+        res = await self.upload_file(type="url", name=name, url=url)
+        file_id = ""
+        if res.dict()['retcode'] == 0:
+            file_id = res.dict()['data']['file_id']
+        await self.sedImageMsg(group_id, file_id)
+        # await self.sedGroupMsg(group_id, data)
