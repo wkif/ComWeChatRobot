@@ -1,6 +1,9 @@
 from datetime import datetime
 import json
+import os
 import re
+
+import requests
 from wechatbot_client.action_manager import (
     ActionManager,
     ActionRequest,
@@ -95,6 +98,23 @@ class Rebot(Adapter):
                         "type": "text",
                         "data": {
                             "text": msg
+                        }
+                    }
+                ]
+            })
+        )
+
+# 发送文件
+    async def sedFileMsg(self, group_id, file_id):
+        return await self.action_request(
+            ActionRequest(action="send_message", params={
+                "detail_type": "group",
+                "group_id": group_id,
+                "message": [
+                    {
+                        "type": "file",
+                        "data": {
+                            "file_id": file_id
                         }
                     }
                 ]
@@ -640,6 +660,19 @@ class Rebot(Adapter):
                     author + "\n" + "🎦  视频链接： " + videoUrl + "\n" + \
                     "📷  封面链接： " + cover + "\n" + "📼 音频链接： " + music + "\n"
                 await self.sedGroupMsg(group_id, mess)
+                await self.sedGroupMsg(group_id, "复制链接太麻烦？正在发送视频，稍等...")
+                # 去除title里面所有符号，只保留汉字，用于上传
+                response = requests.head(videoUrl, allow_redirects=True)
+                long_url = response.url
+                res = await self.upload_file(type="url",
+                                             name=re.sub(r'[^\u4e00-\u9fa5]', '', title)+".mp4",
+                                             url=long_url)
+                file_id = ""
+                if res.dict()['retcode'] == 0:
+                    file_id = res.dict()['data']['file_id']
+                    await self.sedFileMsg(group_id, file_id)
+                else:
+                    await self.sedGroupMsg(group_id, "哦豁，好像没有拿到视频，自己复制打开试试？")
             else:
                 await self.sedGroupMsg(group_id, res)
             
@@ -697,15 +730,19 @@ class Rebot(Adapter):
 
 # 早晚招呼
     async def MorningNight(self, group_id):
-        imgData = await MorningApi()
+        # imgData = await MorningApi()
         # 当前时间戳
         time = datetime.now()
         name = "imgData" + str(time)
-        print("type")
-        print(type(imgData))
-        dataId = await self.upload_file(type="data", name=name, data=imgData)
-        print(dataId)
-        pass
+        # print("type")
+        # print(type(imgData))
+        path = os.path.join(os.getcwd(), "data/test/video.mp4")
+        res = await self.upload_file(type="path", name=name, path=path)
+        file_id = ""
+        if res.dict()['retcode'] == 0:
+            file_id = res.dict()['data']['file_id']
+        print(file_id)
+        await self.sedFileMsg(group_id, file_id)
 
 #  吃什么
     async def getRandomFood(self, group_id):
