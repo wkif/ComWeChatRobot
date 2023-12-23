@@ -1,4 +1,5 @@
 from datetime import datetime
+import json
 import re
 from wechatbot_client.action_manager import (
     ActionManager,
@@ -96,6 +97,14 @@ class Rebot(Adapter):
                         }
                     }
                 ]
+            })
+        )
+
+# 清除缓存
+    async def clean_cache(self, days: int = 3):
+        return await self.action_request(
+            ActionRequest(action="wx.clean_cache", params={
+                "days": days
             })
         )
 
@@ -198,6 +207,18 @@ class Rebot(Adapter):
                 await self.deleteOpenGroup(group_id)
             else:
                 await self.sedGroupMsg(group_id, self.isNotAdminMsg)
+        if messageText == "清除缓存":
+            if sender_user_id == SUPERADMIN_USER_ID:
+                res = await self.clean_cache()
+                if res.dict()['retcode'] == 0:
+                    num = res.dict()['data']
+                    await self.sedGroupMsg(group_id,
+                                           "已经清除3天缓存,共"+str(num)+"个文件")
+                else:
+                    log("ERROR", "缓存清理异常："+json.dumps(res))
+                    await self.sedGroupMsg(group_id, "清理失败，看看日志咋回事")
+            else:
+                await self.sedGroupMsg(group_id, "让老大来清理吧！")
 
         if "功能菜单" in messageText or "功能列表" in messageText:
             await self.menuList(group_id, sender_user_id)
