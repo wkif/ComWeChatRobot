@@ -65,6 +65,17 @@ class RebotUtils(Adapter):
             )
         )
 
+    # 获取群信息
+    async def getGroupInfo(self, group_id):
+        return await self.action_request(
+            ActionRequest(
+                action="get_group_info",
+                params={
+                    "group_id": group_id,
+                },
+            )
+        )
+
     # 上传文件
     async def upload_file(self, type, name, url=None, path=None, data=None):
         params = {}
@@ -91,6 +102,19 @@ class RebotUtils(Adapter):
             )
         )
 
+    # 发送文件
+    async def sedFileMsg(self, group_id, file_id):
+        return await self.action_request(
+            ActionRequest(
+                action="send_message",
+                params={
+                    "detail_type": "group",
+                    "group_id": group_id,
+                    "message": [{"type": "file", "data": {"file_id": file_id}}],
+                },
+            )
+        )
+
     # 在群里艾特某人
     async def sedGroupMentionMsg(self, group_id, user_id):
         await self.action_request(
@@ -103,18 +127,6 @@ class RebotUtils(Adapter):
                 },
             )
         )
-
-    # # 验证是否是管理
-    # async def AdminVerification(self, group_id, user_id):
-    #     isAdmin = False
-    #     adminList = await self.admin.read()
-    #     for admin in adminList:
-    #         if admin[2] == user_id:
-    #             isAdmin = True
-    #             break
-    #     if not isAdmin:
-    #         await self.sedGroupMsg(group_id, self.isNotAdminMsg)
-    #     return isAdmin
 
     # 消息分解
     async def messageDeal(self, message):

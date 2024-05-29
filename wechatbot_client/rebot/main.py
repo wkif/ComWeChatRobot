@@ -1,4 +1,8 @@
+from datetime import datetime
 import json
+import re
+
+import requests
 from wechatbot_client.action_manager import (
     ActionManager,
     ActionRequest,
@@ -12,8 +16,9 @@ from wechatbot_client.utils import logger_wrapper
 from wechatbot_client.wechat.adapter import Adapter
 from .utils import RebotUtils
 from wechatbot_client.admin import Admin
-from wechatbot_client.group import OpenGroup
+from wechatbot_client.group import OpenGroup, GroupMessage
 from wechatbot_client.consts import SUPERADMIN_USER_ID, REBOT_NAME
+from wechatbot_client.networkInterface.main import NetworkInterface
 
 log = logger_wrapper("WeChat Manager")
 
@@ -23,12 +28,16 @@ class Rebot(Adapter):
     utils: RebotUtils
     admin: Admin
     openGroup: OpenGroup
+    groupMessage: GroupMessage
+    networkInterface: NetworkInterface
 
     def __init__(self, action_manager):
         self.action_manager = action_manager
         self.utils = RebotUtils(self.action_manager)
         self.admin = Admin()
         self.openGroup = OpenGroup()
+        self.groupMessage = GroupMessage()
+        self.networkInterface = NetworkInterface()
         self.isNotAdminMsg = "你不是管理员哦！"
         self.name = REBOT_NAME
 
@@ -36,6 +45,8 @@ class Rebot(Adapter):
         sender_user_id, group_id, messageText, mention_userId, mesageType = (
             await self.utils.messageDeal(msg)
         ).values()
+        # 消息记录
+        await self.listenMessage(group_id, sender_user_id, messageText)
         if messageText == "功能菜单":
             await self.menuList(group_id, sender_user_id)
         if messageText == "增加管理" or messageText == "新增管理":
@@ -51,6 +62,17 @@ class Rebot(Adapter):
         if messageText == "清除缓存":
             await self.clearCache(sender_user_id, group_id)
         #     # 以下功能需要开通机器人才执行------------
+        if not await self.openGroup.isOpen(group_id):
+            self.utils.sedGroupMsg(group_id, "机器人未开通")
+            return
+        if "日活" in messageText:
+            await self.getMessageRanking_today(group_id)
+        if "月活" in messageText:
+            await self.getMessageRanking_month(group_id)
+        if "总活" in messageText:
+            await self.getMessageRanking_all(group_id)
+        if "去水印" in messageText:
+            await self.getVideoWaterMark(group_id, messageText)
 
     # 功能菜单处理模块
     async def menuList(self, group_id, sender_user_id):
@@ -263,7 +285,195 @@ class Rebot(Adapter):
                     group_id, "已经清除全部缓存,共" + str(num) + "个文件"
                 )
             else:
-                log("ERROR", "缓存清理异常：" + json.dumps(res))
+                log("ERROR", "缓存清理异常：" + res.dict()["message"])
                 await self.utils.sedGroupMsg(group_id, "清理失败，看看日志咋回事")
         else:
             await self.utils.sedGroupMsg(group_id, "让老大来清理吧！")
+
+    async def listenMessage(self, group_id, sender_user_id, messageText):
+        if await self.openGroup.isOpen(group_id):
+            userInfo = await self.utils.getGroupMemberInfo(group_id, sender_user_id)
+            username = ""
+            if userInfo and userInfo.dict()["retcode"] == 0:
+                username = userInfo.dict()["data"]["user_name"]
+            else:
+                username = "未知"
+            group_name = ""
+            groupInfo = await self.utils.getGroupInfo(group_id)
+            if groupInfo and groupInfo.dict()["retcode"] == 0:
+                group_name = groupInfo.dict()["data"]["group_name"]
+            await self.groupMessage.listenMessage(
+                sender_user_id=sender_user_id,
+                sender_user_name=username,
+                message=messageText,
+                time=datetime.now().date(),
+                group_id=group_id,
+                group_name=group_name,
+            )
+
+    # 日活
+    async def getMessageRanking_today(self, group_id):
+        RankingMap = await self.groupMessage.getMessageRanking_today(group_id)
+        result = []
+        for key in RankingMap:
+            if not RankingMap[key]["user_name"]:
+                numberInfo = await self.utils.getGroupMemberInfo(group_id, key)
+                if numberInfo and numberInfo.dict()["retcode"] == 0:
+                    RankingMap[key]["user_name"] = numberInfo.dict()["data"][
+                        "user_name"
+                    ]
+            result.append(RankingMap[key])
+        mess = ""
+        # result取前10
+        result = result[0:20]
+        for a in result:
+            mess = (
+                mess + "✨" + a["user_name"] + " ： 发言" + str(a["number"]) + "次✨\n"
+            )
+        msg = (
+            """
+╭┈┈🎖日活跃度(top 20)🎖┈┈╮
+"""
+            + mess
+            + """
+╰┈┈┈┈┈┈┈┈┈┈╯
+"""
+        )
+        await self.utils.sedGroupMsg(group_id, msg)
+
+    # 月活
+    async def getMessageRanking_month(self, group_id):
+        RankingMap = await self.groupMessage.getMessageRanking_month(group_id)
+        result = []
+        for key in RankingMap:
+            if not RankingMap[key]["user_name"]:
+                numberInfo = await self.utils.getGroupMemberInfo(group_id, key)
+                if numberInfo and numberInfo.dict()["retcode"] == 0:
+                    RankingMap[key]["user_name"] = numberInfo.dict()["data"][
+                        "user_name"
+                    ]
+            result.append(RankingMap[key])
+        mess = ""
+        result = result[0:20]
+        for a in result:
+            mess = (
+                mess + "✨" + a["user_name"] + " ： 发言" + str(a["number"]) + "次✨\n"
+            )
+        msg = (
+            """
+╭┈┈🎖月活跃度(top 20)🎖┈┈╮
+"""
+            + mess
+            + """
+╰┈┈┈┈┈┈┈┈┈┈╯
+"""
+        )
+        await self.utils.sedGroupMsg(group_id, msg)
+
+    # 总活
+    async def getMessageRanking_all(self, group_id):
+        RankingMap = await self.groupMessage.getMessageRanking_all(group_id)
+        result = []
+        for key in RankingMap:
+            if not RankingMap[key]["user_name"]:
+                numberInfo = await self.utils.getGroupMemberInfo(group_id, key)
+                if numberInfo and numberInfo.dict()["retcode"] == 0:
+                    RankingMap[key]["user_name"] = numberInfo.dict()["data"][
+                        "user_name"
+                    ]
+            result.append(RankingMap[key])
+        mess = ""
+        result = result[0:20]
+        for a in result:
+            mess = (
+                mess + "✨" + a["user_name"] + "   发言" + str(a["number"]) + "次✨\n"
+            )
+        msg = (
+            """
+╭┈┈🎖总活跃度(top 20)🎖┈┈╮
+"""
+            + mess
+            + """
+╰┈┈┈┈┈┈┈┈┈┈╯
+"""
+        )
+
+        await self.utils.sedGroupMsg(group_id, msg)
+
+    async def getVideoWaterMark(self, group_id, messageText):
+        # 从 messageText 提取https网址
+        urls = re.findall(r"https?://\S+", messageText)
+        if len(urls):
+            douyinurl = urls[-1]
+            print(douyinurl)
+            res = await self.networkInterface.getDouYinWaterMarkApi(douyinurl)
+            if "data" in res:
+                data = res["data"]
+                if "title" in data:
+                    title = data["title"]
+                if "author" in data:
+                    author = data["author"]
+                if "url" in data:
+                    videoUrl = data["url"]
+                if "cover" in data:
+                    cover = data["cover"]
+                if "music" in data:
+                    if "url" in data["music"]:
+                        music = data["music"]["url"]
+                    else:
+                        music = None
+                else:
+                    music = None
+                # 为 none 时不显示
+                if music is None:
+                    music = ""
+                if cover is None:
+                    cover = ""
+                if author is None:
+                    author = ""
+                if title is None:
+                    title = ""
+                if videoUrl is None:
+                    videoUrl = ""
+                mess = (
+                    "💌  标题： "
+                    + title
+                    + "\n"
+                    + "😀   作者： "
+                    + author
+                    + "\n"
+                    + "🎦  视频链接： "
+                    + videoUrl
+                    + "\n"
+                    + "📷  封面链接： "
+                    + cover
+                    + "\n"
+                    + "📼 音频链接： "
+                    + music
+                    + "\n"
+                )
+                await self.utils.sedGroupMsg(group_id, mess)
+                await self.utils.sedGroupMsg(
+                    group_id, "复制链接太麻烦？正在发送视频，稍等..."
+                )
+                # 去除title里面所有符号，只保留汉字，用于上传
+                response = requests.head(videoUrl, allow_redirects=True)
+                long_url = response.url
+                res = await self.utils.upload_file(
+                    type="url",
+                    name=re.sub(r"[^\u4e00-\u9fa5]", "", title) + ".mp4",
+                    url=long_url,
+                )
+                file_id = ""
+                if res.dict()["retcode"] == 0:
+                    file_id = res.dict()["data"]["file_id"]
+                    await self.utils.sedFileMsg(group_id, file_id)
+                else:
+                    await self.utils.sedGroupMsg(
+                        group_id, "哦豁，好像没有拿到视频，自己复制打开试试？"
+                    )
+            else:
+                await self.utils.sedGroupMsg(group_id, res)
+
+        else:
+            await self.utils.sedGroupMsg(group_id, "没有找到抖音链接")

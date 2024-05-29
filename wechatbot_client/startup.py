@@ -20,7 +20,12 @@ from wechatbot_client.log import logger
 from wechatbot_client.onebot12 import HeartbeatMetaEvent
 from wechatbot_client.scheduler import scheduler, scheduler_init, scheduler_shutdown
 from wechatbot_client.admin import admin_base_close, admin_base_init
-from wechatbot_client.group import opengroup_database_close, opengroup_database_init
+from wechatbot_client.group import (
+    opengroup_database_close,
+    opengroup_database_init,
+    group_message_init,
+    group_message_close,
+)
 
 driver = get_driver()
 wechat = get_wechat()
@@ -58,6 +63,7 @@ async def start_up() -> None:
     await database_init()
     await admin_base_init()
     await opengroup_database_init()
+    await group_message_init()
     # 注册消息事件
     wechat.open_recv_msg(f"./{FILE_CACHE}")
     # 开始监听event
@@ -91,6 +97,7 @@ async def shutdown() -> None:
     await database_close()
     await admin_base_close()
     await opengroup_database_close()
+    await group_message_close()
     if pump_event_task:
         if not pump_event_task.done():
             pump_event_task.cancel()
