@@ -15,6 +15,12 @@ from wechatbot_client.config import Config, WebsocketType
 from wechatbot_client.consts import FILE_CACHE
 from wechatbot_client.driver import URL, HTTPServerSetup, WebSocketServerSetup
 from wechatbot_client.file_manager import database_close, database_init
+from wechatbot_client.food import fooddatabase_close, fooddatabase_init
+from wechatbot_client.group import groupdatabase_close, groupdatabase_init
+from wechatbot_client.sign import signdatabase_close, signdatabase_init
+from wechatbot_client.speechStatistics import opengroupdatabase_close, \
+    opengroupdatabase_init,groupmessage_init,groupmessage_close,privatemessage_init,privatemessage_close
+from wechatbot_client.admin import adminbase_close, adminbase_init
 from wechatbot_client.log import logger
 from wechatbot_client.onebot12 import HeartbeatMetaEvent
 from wechatbot_client.scheduler import scheduler, scheduler_init, scheduler_shutdown
@@ -53,6 +59,13 @@ async def start_up() -> None:
         )
     # 开启数据库
     await database_init()
+    await fooddatabase_init()
+    await groupdatabase_init()
+    await signdatabase_init()
+    await opengroupdatabase_init()
+    await privatemessage_init()
+    await groupmessage_init()
+    await adminbase_init()
     # 注册消息事件
     wechat.open_recv_msg(f"./{FILE_CACHE}")
     # 开始监听event
@@ -84,6 +97,13 @@ async def shutdown() -> None:
     scheduler_shutdown()
     # 关闭数据库
     await database_close()
+    await fooddatabase_close()
+    await groupdatabase_close()
+    await signdatabase_close()
+    await opengroupdatabase_close()
+    await privatemessage_close()
+    await groupmessage_close()
+    await adminbase_close()
     if pump_event_task:
         if not pump_event_task.done():
             pump_event_task.cancel()

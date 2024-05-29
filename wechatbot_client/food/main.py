@@ -5,6 +5,8 @@ import sqlite3
 
 class Food:
     def __init__(self):
+        if not os.path.exists(os.path.join(os.getcwd(), 'data/food')):
+            os.makedirs(os.path.join(os.getcwd(), 'data/food'))
         self.dbPath = os.path.join(os.getcwd(), 'data/food', 'food.db')
         self.conn = sqlite3.connect(self.dbPath)
         self.cursor = self.conn.cursor()

@@ -6,10 +6,18 @@ import time
 
 class MessageDb:
     def __init__(self):
+        if not os.path.exists(os.path.join(os.getcwd(), 'data/speechStatistics')):
+            os.makedirs(os.path.join(os.getcwd(), 'data/speechStatistics'))
         self.dbPath = os.path.join(os.getcwd(), 'data/speechStatistics',
-                                   'message.db')
+                                   'groupMessage.db')
         self.conn = sqlite3.connect(self.dbPath)
         self.cursor = self.conn.cursor()
+        
+   
+        self.dbPath_p = os.path.join(os.getcwd(), 'data/speechStatistics',
+                                   'privateMessage.db')
+        self.conn_p = sqlite3.connect(self.dbPath_p)
+        self.cursor_p = self.conn_p.cursor()
 
     async def listenMessage(self, sender_user_id, sender_user_name, message,
                             time, detail_type, group_id=None, group_name=None):
@@ -23,8 +31,8 @@ class MessageDb:
         else:
             sql = "INSERT INTO privateMessage (sender_user_id,\
                 message, time) VALUES (?, ?, ?) "
-            self.cursor.execute(sql, (sender_user_id, message, time))
-            self.conn.commit()
+            self.cursor_p.execute(sql, (sender_user_id, message, time))
+            self.conn_p.commit()
         return
     
     async def getMessageRanking_today(self, group_id):

@@ -4,6 +4,8 @@ import sqlite3
 
 class Admin:
     def __init__(self):
+        if not os.path.exists(os.path.join(os.getcwd(), 'data/admin')):
+            os.makedirs(os.path.join(os.getcwd(), 'data/admin'))
         self.dbPath = os.path.join(os.getcwd(), 'data/admin', 'admin.db')
         self.conn = sqlite3.connect(self.dbPath)
         self.cursor = self.conn.cursor()

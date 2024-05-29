@@ -5,6 +5,8 @@ import os
 
 class Group:
     def __init__(self):
+        if not os.path.exists(os.path.join(os.getcwd(), 'data/speechStatistics')):
+            os.makedirs(os.path.join(os.getcwd(), 'data/speechStatistics'))
         self.groupDbPath = os.path.join(os.getcwd(), 'data/speechStatistics',
                                         'group.db')
         self.groupConn = sqlite3.connect(self.groupDbPath)

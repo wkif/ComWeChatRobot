@@ -5,6 +5,8 @@ import sqlite3
 
 class SpeechStatistics:
     def __init__(self):
+        if not os.path.exists(os.path.join(os.getcwd(), 'data/speechStatistics')):
+            os.makedirs(os.path.join(os.getcwd(), 'data/speechStatistics'))
         self.dbPath = os.path.join(os.getcwd(), 'data/speechStatistics',
                                    'openGroup.db')
         self.conn = sqlite3.connect(self.dbPath)
