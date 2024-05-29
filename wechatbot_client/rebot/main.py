@@ -1,3 +1,4 @@
+import json
 from wechatbot_client.action_manager import (
     ActionManager,
     ActionRequest,
@@ -7,22 +8,27 @@ from wechatbot_client.action_manager import (
     check_action_params,
 )
 from wechatbot_client.typing import overrides
+from wechatbot_client.utils import logger_wrapper
 from wechatbot_client.wechat.adapter import Adapter
 from .utils import RebotUtils
 from wechatbot_client.admin import Admin
+from wechatbot_client.group import OpenGroup
 from wechatbot_client.consts import SUPERADMIN_USER_ID, REBOT_NAME
+
+log = logger_wrapper("WeChat Manager")
 
 
 class Rebot(Adapter):
     action_manager: ActionManager
     utils: RebotUtils
     admin: Admin
-    """管理员模块"""
+    openGroup: OpenGroup
 
     def __init__(self, action_manager):
         self.action_manager = action_manager
         self.utils = RebotUtils(self.action_manager)
         self.admin = Admin()
+        self.openGroup = OpenGroup()
         self.isNotAdminMsg = "你不是管理员哦！"
         self.name = REBOT_NAME
 
@@ -32,14 +38,19 @@ class Rebot(Adapter):
         ).values()
         if messageText == "功能菜单":
             await self.menuList(group_id, sender_user_id)
-
         if messageText == "增加管理" or messageText == "新增管理":
             await self.addAdmin(sender_user_id, group_id, mention_userId)
         if messageText == "删除管理":
             await self.delAdmin(sender_user_id, group_id, mention_userId)
-
         if "管理列表" in messageText:
             await self.adminList(group_id)
+        if messageText == "开通机器人":
+            await self.enableRobot(group_id, sender_user_id)
+        if messageText == "关闭机器人":
+            await self.disableRobot(group_id, sender_user_id)
+        if messageText == "清除缓存":
+            await self.clearCache(sender_user_id, group_id)
+        #     # 以下功能需要开通机器人才执行------------
 
     # 功能菜单处理模块
     async def menuList(self, group_id, sender_user_id):
@@ -203,3 +214,56 @@ class Rebot(Adapter):
                 username = "未知"
             message = message + username + "\n"
         await self.utils.sedGroupMsg(group_id, message)
+
+    # 开通机器人处理模块
+    async def enableRobot(self, group_id, sender_user_id):
+        isAdmin = (
+            await self.admin.isAdmin(sender_user_id, group_id)
+            or sender_user_id == SUPERADMIN_USER_ID
+        )
+        if isAdmin:
+            isOpen = await self.openGroup.isOpen(group_id)
+            if isOpen:
+                await self.utils.sedGroupMsg(group_id, "机器人已经开通")
+                return
+            status = await self.openGroup.open(group_id)
+            if status:
+                await self.utils.sedGroupMsg(group_id, "开通成功")
+            else:
+                await self.utils.sedGroupMsg(group_id, "开通失败")
+        else:
+            await self.utils.sedGroupMsg(group_id, self.isNotAdminMsg)
+
+    # 关闭机器人处理模块
+    async def disableRobot(self, group_id, sender_user_id):
+        isAdmin = (
+            await self.admin.isAdmin(sender_user_id, group_id)
+            or sender_user_id == SUPERADMIN_USER_ID
+        )
+        if isAdmin:
+            isOpen = await self.openGroup.isOpen(group_id)
+            if not isOpen:
+                await self.utils.sedGroupMsg(group_id, "机器人未开通")
+                return
+            status = await self.openGroup.close(group_id)
+            if status:
+                await self.utils.sedGroupMsg(group_id, "关闭成功")
+            else:
+                await self.utils.sedGroupMsg(group_id, "关闭失败")
+        else:
+            await self.utils.sedGroupMsg(group_id, self.isNotAdminMsg)
+
+    # 清除缓存
+    async def clearCache(self, sender_user_id, group_id):
+        if sender_user_id == SUPERADMIN_USER_ID:
+            res = await self.utils.clean_cache()
+            if res.dict()["retcode"] == 0:
+                num = res.dict()["data"]
+                await self.utils.sedGroupMsg(
+                    group_id, "已经清除全部缓存,共" + str(num) + "个文件"
+                )
+            else:
+                log("ERROR", "缓存清理异常：" + json.dumps(res))
+                await self.utils.sedGroupMsg(group_id, "清理失败，看看日志咋回事")
+        else:
+            await self.utils.sedGroupMsg(group_id, "让老大来清理吧！")

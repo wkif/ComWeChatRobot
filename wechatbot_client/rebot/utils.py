@@ -160,3 +160,9 @@ class RebotUtils(Adapter):
         image.save(f"{imagePath}/menu.jpg")
         path = os.path.join(os.getcwd(), "file_cache/image/menu.jpg")
         return path
+
+    # 清除缓存
+    async def clean_cache(self, days: int = 0):
+        return await self.action_request(
+            ActionRequest(action="wx.clean_cache", params={"days": days})
+        )
