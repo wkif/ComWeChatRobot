@@ -18,8 +18,10 @@ class Admin:
 
     async def search(self, user_id, group_id):
         list = await self.read(group_id)
+        print(list)
         for i in list:
-            if i[1] == user_id:
+            print(i[1])
+            if i[2] == user_id:
                 return i
         return None
 

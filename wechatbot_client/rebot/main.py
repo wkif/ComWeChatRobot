@@ -50,7 +50,7 @@ class Rebot(Adapter):
     file_manager: FileManager
     """文件管理器"""
     food: Food
-    
+
     def __init__(self, action_manager):
         self.action_manager = action_manager
         self.file_manager = FileManager()
@@ -62,7 +62,7 @@ class Rebot(Adapter):
         self.food = Food()
         self.isNotAdminMsg = "你不是管理员哦！"
         self.name = REBOT_NAME
-        
+
     @overrides(Adapter)
     async def action_request(self, request: ActionRequest) -> ActionResponse:
         """
@@ -88,139 +88,7 @@ class Rebot(Adapter):
         # 调用api
         return await self.action_manager.request(action_name, action_model)
 
-# 发送群消息
-    async def sedGroupMsg(self, group_id, msg):
-        # print("发送")
-        # print(msg)
-        # return
-        await self.action_request(
-            ActionRequest(action="send_message", params={
-                "detail_type": "group",
-                "group_id": group_id,
-                "message": [
-                    {
-                        "type": "text",
-                        "data": {
-                            "text": msg
-                        }
-                    }
-                ]
-            })
-        )
-
-# 发送文件
-    async def sedFileMsg(self, group_id, file_id):
-        return await self.action_request(
-            ActionRequest(action="send_message", params={
-                "detail_type": "group",
-                "group_id": group_id,
-                "message": [
-                    {
-                        "type": "file",
-                        "data": {
-                            "file_id": file_id
-                        }
-                    }
-                ]
-            })
-        )
-
-# 发送图片
-    async def sedImageMsg(self, group_id, file_id):
-        return await self.action_request(
-            ActionRequest(action="send_message", params={
-                "detail_type": "group",
-                "group_id": group_id,
-                "message": [
-                    {
-                        "type": "image",
-                        "data": {
-                            "file_id": file_id
-                        }
-                    }
-                ]
-            })
-        )
-
-# 清除缓存
-    async def clean_cache(self, days: int = 0):
-        return await self.action_request(
-            ActionRequest(action="wx.clean_cache", params={
-                "days": days
-            })
-        )
-
-# 在群里艾特某人
-    async def sedGroupMentionMsg(self, group_id, user_id):
-        await self.action_request(
-            ActionRequest(action="send_message", params={
-                "detail_type": "group",
-                "group_id": group_id,
-                "message": [
-                    {
-                        "type": "mention",
-                        "data": {
-                            "user_id": user_id
-                        }
-                    }
-                ]
-            })
-        )
-
-# 获取群信息
-    async def getGroupInfo(self, group_id):
-        return await self.action_request(
-            ActionRequest(action="get_group_info", params={
-                "group_id": group_id,
-            })
-        )
-
-# 获取群成员信息
-    async def getGroupMemberInfo(self, group_id, user_id):
-        return await self.action_request(
-            ActionRequest(action="get_group_member_info", params={
-                "user_id": user_id,
-                "group_id": group_id
-            })
-        )
-
-    async def getSupportedActions(self):
-        return await self.action_request(
-            ActionRequest(action="get_supported_actions", params={
-            })
-        )
-
-# 上传文件
-    async def upload_file(self, type, name, url=None, path=None, data=None):
-        params = {}
-        if type == "url":
-            params = {
-                "type": "url",
-                "name": name,
-                "url": url
-            }
-        if type == "path":
-            params = {
-                "type": "path",
-                "name": name,
-                "path": path
-            }
-        if type == "data":
-            params = {
-                "type": "data",
-                "name": name,
-                "data": data
-            }
-        # print(params)
-        return await self.action_request(
-            ActionRequest(action="upload_file", params=params)
-        )
-
-# 验证是否是管理
-    async def AdminVerification(self, group_id, user_id):
-        return await self.admin.checkIsAdmin(user_id, group_id)
-
-# 主处理模块
+    # 主处理模块
     async def deal(self, msg):
         print(msg)
         mesageType = ""
@@ -228,29 +96,29 @@ class Rebot(Adapter):
         #     return
         if "message" in msg:
             mesageType = msg["message"][0].type
-            print("mesageType："+mesageType)
-        sender_user_id = msg['user_id']
+            print("mesageType：" + mesageType)
+        sender_user_id = msg["user_id"]
         mention_userId = None
-        if msg['detail_type'] == "wx.get_group_redbag":
+        if msg["detail_type"] == "wx.get_group_redbag":
             messageText = "wx.get_group_redbag"
         elif mesageType == "mention":
-            mention_userId = msg["message"][0].data['user_id']
-            print("mention_userId:"+mention_userId)
-            messageText = msg["message"][1].data['text']
+            mention_userId = msg["message"][0].data["user_id"]
+            print("mention_userId:" + mention_userId)
+            messageText = msg["message"][1].data["text"]
         elif mesageType == "text" or mesageType == "reply":
-            messageText = msg["message"][-1].data['text']
+            messageText = msg["message"][-1].data["text"]
         elif mesageType == "wx.emoji":
             messageText = "wx.emoji"
         else:
             return
-        group_id = msg['group_id']
-        print("sender_user_id："+sender_user_id)
-        print("group_id："+group_id)
-        print("messageText："+messageText)
+        group_id = msg["group_id"]
+        print("sender_user_id：" + sender_user_id)
+        print("group_id：" + group_id)
+        print("messageText：" + messageText)
         # 聊天内容记录
         if await self.speechstatistics.checkRecordChat(group_id):
             print("记录！！！")
-            await self.recordChat(group_id, sender_user_id, messageText, msg['time'])
+            await self.recordChat(group_id, sender_user_id, messageText, msg["time"])
         # if sender_user_id != SUPERADMIN_USER_ID and mesageType == "mention":
         #     # await self.sedGroupMsg(group_id, "老大还在测试，别急哈！")
         #     return
@@ -278,12 +146,13 @@ class Rebot(Adapter):
         if messageText == "清除缓存":
             if sender_user_id == SUPERADMIN_USER_ID:
                 res = await self.clean_cache()
-                if res.dict()['retcode'] == 0:
-                    num = res.dict()['data']
-                    await self.sedGroupMsg(group_id,
-                                           "已经清除全部缓存,共"+str(num)+"个文件")
+                if res.dict()["retcode"] == 0:
+                    num = res.dict()["data"]
+                    await self.sedGroupMsg(
+                        group_id, "已经清除全部缓存,共" + str(num) + "个文件"
+                    )
                 else:
-                    log("ERROR", "缓存清理异常："+json.dumps(res))
+                    log("ERROR", "缓存清理异常：" + json.dumps(res))
                     await self.sedGroupMsg(group_id, "清理失败，看看日志咋回事")
             else:
                 await self.sedGroupMsg(group_id, "让老大来清理吧！")
@@ -292,8 +161,12 @@ class Rebot(Adapter):
             await self.menuList(group_id, sender_user_id)
         # 特定命令区----------------end
         # 艾特成员功能区--------------start
-        elif messageText == "增加管理" or messageText == "新增管理":
-            if await self.AdminVerification(group_id, sender_user_id) or sender_user_id == SUPERADMIN_USER_ID:
+        if messageText == "增加管理" or messageText == "新增管理":
+            print("SUPERADMIN_USER_ID" + SUPERADMIN_USER_ID)
+            if (
+                await self.AdminVerification(group_id, sender_user_id)
+                or sender_user_id == SUPERADMIN_USER_ID
+            ):
                 if sender_user_id == SUPERADMIN_USER_ID and not mention_userId:
                     await self.addAdmin(group_id, SUPERADMIN_USER_ID)
                 else:
@@ -302,7 +175,10 @@ class Rebot(Adapter):
                     else:
                         await self.addAdmin(group_id, mention_userId)
         elif messageText == "删除管理":
-            if await self.AdminVerification(group_id, sender_user_id) or sender_user_id == SUPERADMIN_USER_ID:
+            if (
+                await self.AdminVerification(group_id, sender_user_id)
+                or sender_user_id == SUPERADMIN_USER_ID
+            ):
                 if not mention_userId:
                     await self.sedGroupMsg(group_id, "艾特一下删除哪个管理呀")
                 else:
@@ -317,7 +193,7 @@ class Rebot(Adapter):
             await self.sedGroupMsg(group_id, message)
         # 艾特成员功能区--------------end
         if not await self.speechstatistics.checkOpenGroupList(group_id):
-            print(group_id+"没有开通功能,不处理")
+            print(group_id + "没有开通功能,不处理")
             # if mesageType == "mention" and mention_userId  == REBOT_USER_ID:
             return
         # 以下功能需要开通机器人才执行-----
@@ -370,11 +246,118 @@ class Rebot(Adapter):
         else:
             pass
 
-# 菜单
+    # 发送群消息
+    async def sedGroupMsg(self, group_id, msg):
+        # print("发送")
+        # print(msg)
+        # return
+        await self.action_request(
+            ActionRequest(
+                action="send_message",
+                params={
+                    "detail_type": "group",
+                    "group_id": group_id,
+                    "message": [{"type": "text", "data": {"text": msg}}],
+                },
+            )
+        )
+
+    # 发送文件
+    async def sedFileMsg(self, group_id, file_id):
+        return await self.action_request(
+            ActionRequest(
+                action="send_message",
+                params={
+                    "detail_type": "group",
+                    "group_id": group_id,
+                    "message": [{"type": "file", "data": {"file_id": file_id}}],
+                },
+            )
+        )
+
+    # 发送图片
+    async def sedImageMsg(self, group_id, file_id):
+        return await self.action_request(
+            ActionRequest(
+                action="send_message",
+                params={
+                    "detail_type": "group",
+                    "group_id": group_id,
+                    "message": [{"type": "image", "data": {"file_id": file_id}}],
+                },
+            )
+        )
+
+    # 清除缓存
+    async def clean_cache(self, days: int = 0):
+        return await self.action_request(
+            ActionRequest(action="wx.clean_cache", params={"days": days})
+        )
+
+    # 在群里艾特某人
+    async def sedGroupMentionMsg(self, group_id, user_id):
+        await self.action_request(
+            ActionRequest(
+                action="send_message",
+                params={
+                    "detail_type": "group",
+                    "group_id": group_id,
+                    "message": [{"type": "mention", "data": {"user_id": user_id}}],
+                },
+            )
+        )
+
+    # 获取群信息
+    async def getGroupInfo(self, group_id):
+        return await self.action_request(
+            ActionRequest(
+                action="get_group_info",
+                params={
+                    "group_id": group_id,
+                },
+            )
+        )
+
+    # 获取群成员信息
+    async def getGroupMemberInfo(self, group_id, user_id):
+        return await self.action_request(
+            ActionRequest(
+                action="get_group_member_info",
+                params={"user_id": user_id, "group_id": group_id},
+            )
+        )
+
+    async def getSupportedActions(self):
+        return await self.action_request(
+            ActionRequest(action="get_supported_actions", params={})
+        )
+
+    # 上传文件
+    async def upload_file(self, type, name, url=None, path=None, data=None):
+        params = {}
+        if type == "url":
+            params = {"type": "url", "name": name, "url": url}
+        if type == "path":
+            params = {"type": "path", "name": name, "path": path}
+        if type == "data":
+            params = {"type": "data", "name": name, "data": data}
+        # print(params)
+        return await self.action_request(
+            ActionRequest(action="upload_file", params=params)
+        )
+
+    # 验证是否是管理
+    async def AdminVerification(self, group_id, user_id):
+        return await self.admin.checkIsAdmin(user_id, group_id)
+
+    # 菜单
     async def menuList(self, group_id, user_id):
-        message = '''
+        message = (
+            """
 |       你好，我是       |
-|   ''' + REBOT_NAME + '''   |
+|   """
+            + REBOT_NAME
+            + """   |
 |     可以帮你管理群聊    |
 |-------功能菜单-------|
 |----群管理特权区----|
@@ -403,39 +386,43 @@ class Rebot(Adapter):
 |15.新闻；（eg:新闻）|
 |16.星期四（eg:星期四）|
 |17.日报）|
-        '''
+        """
+        )
         await self.sedGroupMentionMsg(group_id, user_id)
         await self.sedGroupMsg(group_id, message)
 
-# 增加管理员
+    # 增加管理员
     async def addAdmin(self, group_id, user_id):
-        ad = await self.admin.search(user_id,  group_id)
+        ad = await self.admin.search(user_id, group_id)
         if ad:
             await self.sedGroupMsg(group_id, "人家早就已经是管理员了")
         else:
             user_name = ""
-            response = await self.action_request(ActionRequest(
-                action="get_group_member_info",
-                params={
-                    "group_id": group_id,
-                    "user_id": user_id
-                }
-            ))
-            if response.dict()['retcode'] == 0:
-                user_name = response.dict()['data']['user_name']
+            response = await self.action_request(
+                ActionRequest(
+                    action="get_group_member_info",
+                    params={"group_id": group_id, "user_id": user_id},
+                )
+            )
+            if response.dict()["retcode"] == 0:
+                user_name = response.dict()["data"]["user_name"]
             else:
-                await self.sedGroupMsg(group_id, "添加失败,你看看群成员列表有没有该成员嘞！")
+                await self.sedGroupMsg(
+                    group_id, "添加失败,你看看群成员列表有没有该成员嘞！"
+                )
                 return
-            status = await self.admin.addAdmin(name=user_name, user_id=user_id, group_id=group_id)
+            status = await self.admin.addAdmin(
+                name=user_name, user_id=user_id, group_id=group_id
+            )
             if status:
                 await self.sedGroupMsg(group_id, "添加成功，权力越大，责任越大！")
             else:
                 await self.sedGroupMsg(group_id, "咦？添加失败，老大快来看看")
                 await self.sedGroupMentionMsg(group_id, user_id=SUPERADMIN_USER_ID)
 
-# 移除管理员
+    # 移除管理员
     async def deleteAdmin(self, group_id, user_id):
-        ad = await self.admin.search(user_id,  group_id)
+        ad = await self.admin.search(user_id, group_id)
         if not ad:
             await self.sedGroupMsg(group_id, "ta本来就不是管理员")
         else:
@@ -446,55 +433,51 @@ class Rebot(Adapter):
                 await self.sedGroupMsg(group_id, "去除失败，请联系老大手动去除")
                 await self.sedGroupMentionMsg(group_id, user_id=SUPERADMIN_USER_ID)
 
-# 查看退群成员
+    # 查看退群成员
     async def getQuitGroupList(self, group_id):
         current_number_list = []
-        response = await self.action_request(ActionRequest(
-            action="get_group_member_list",
-            params={"group_id": group_id}
-        ))
-        if response.dict()['retcode'] == 0:
-            current_number_list = response.dict()['data']
+        response = await self.action_request(
+            ActionRequest(action="get_group_member_list", params={"group_id": group_id})
+        )
+        if response.dict()["retcode"] == 0:
+            current_number_list = response.dict()["data"]
             await self.updateAllNumberList(group_id)
-            quitList = await self.group.getQuitGroupList(
-                group_id, current_number_list
-            )
+            quitList = await self.group.getQuitGroupList(group_id, current_number_list)
             if not len(quitList):
-                await self.sedGroupMsg(group_id, "没有退群历史记录，你给大伙退一个试试哈哈哈")
+                await self.sedGroupMsg(
+                    group_id, "没有退群历史记录，你给大伙退一个试试哈哈哈"
+                )
                 return
-            message = '以下是退群历史成员：\n'
+            message = "以下是退群历史成员：\n"
             for i in quitList:
-                message = message + i['user_name'] + '\n'
+                message = message + i["user_name"] + "\n"
             today = await TodayApi()
             message += today
             await self.sedGroupMsg(group_id, message)
             return
 
-# 更新群历史成员
+    # 更新群历史成员
     async def updateAllNumberList(self, group_id):
         current_number_list = []
-        response = await self.action_request(ActionRequest(
-            action="get_group_member_list",
-            params={"group_id": group_id}
-        ))
-        if response.dict()['retcode'] == 0:
-            current_number_list = response.dict()['data']
-            status = await self.group.updateAllNumberList(
-                group_id, current_number_list
-            )
+        response = await self.action_request(
+            ActionRequest(action="get_group_member_list", params={"group_id": group_id})
+        )
+        if response.dict()["retcode"] == 0:
+            current_number_list = response.dict()["data"]
+            status = await self.group.updateAllNumberList(group_id, current_number_list)
             if status:
-                log("SUCCESS", "更新群"+group_id+"历史成员成功")
+                log("SUCCESS", "更新群" + group_id + "历史成员成功")
             else:
-                log("ERROR", "更新群"+group_id+"历史成员失败")
+                log("ERROR", "更新群" + group_id + "历史成员失败")
 
-# 签到
+    # 签到
     async def signIn(self, group_id, user_id):
         sender_user_name = ""
         userInfo = await self.getGroupMemberInfo(group_id, user_id)
-        if userInfo and userInfo.dict()['retcode'] == 0:
-            sender_user_name = userInfo.dict()['data']['user_name']
+        if userInfo and userInfo.dict()["retcode"] == 0:
+            sender_user_name = userInfo.dict()["data"]["user_name"]
         res = await self.sign.signIn(user_id)
-        if res['status'] == 0:
+        if res["status"] == 0:
             # msg = "今天已经签到过了,明天再来吧；累计签到" + str(res['sign_count']) +\
             #     "天;"+"连续签到" + str(res['count']) + "天"
             msg = """
@@ -503,8 +486,10 @@ class Rebot(Adapter):
             🗒连续签到：{} \n
             🗓累计签到：{} \n
             ╰┈┈┈┈┈┈┈┈┈╯
-            """.format(sender_user_name, str(res['count']), str(res['sign_count']))
-        elif res['status'] == 1:
+            """.format(
+                sender_user_name, str(res["count"]), str(res["sign_count"])
+            )
+        elif res["status"] == 1:
             # msg = "签到成功!累计签到" + str(res['sign_count']) +\
             #     "天;"+"连续签到" + str(res['count']) + "天"
             msg = """
@@ -513,14 +498,16 @@ class Rebot(Adapter):
             🗒连续签到：{} \n
             🗓累计签到：{} \n
             ╰┈┈┈┈┈┈┈┈┈╯
-            """.format(str(res['count']), str(res['sign_count']))
+            """.format(
+                str(res["count"]), str(res["sign_count"])
+            )
         else:
             msg = "签到失败"
         today = await TodayApi()
         msg += today
         await self.sedGroupMsg(group_id, msg)
 
-# 开通机器人
+    # 开通机器人
     async def addOpenGroup(self, group_id):
         currentStatus = await self.speechstatistics.checkOpenGroupList(group_id)
         if currentStatus:
@@ -533,7 +520,7 @@ class Rebot(Adapter):
             await self.sedGroupMsg(group_id, "哦豁，开通失败，老大来看看")
             await self.sedGroupMentionMsg(group_id, user_id=SUPERADMIN_USER_ID)
 
-# 关闭机器人
+    # 关闭机器人
     async def deleteOpenGroup(self, group_id):
         currentStatus = await self.speechstatistics.checkOpenGroupList(group_id)
         if not currentStatus:
@@ -546,7 +533,7 @@ class Rebot(Adapter):
             await self.sedGroupMsg(group_id, "哦豁，关闭失败，老大来看看")
             await self.sedGroupMentionMsg(group_id, user_id=SUPERADMIN_USER_ID)
 
-# 开通记录
+    # 开通记录
     async def startRecordChat(self, group_id):
         status = await self.speechstatistics.startRecordChat(group_id)
         if status == 1:
@@ -557,7 +544,7 @@ class Rebot(Adapter):
             await self.sedGroupMsg(group_id, "哦豁，开通失败，老大来看看")
             await self.sedGroupMentionMsg(group_id, user_id=SUPERADMIN_USER_ID)
 
-# 关闭记录
+    # 关闭记录
     async def stopRecordChat(self, group_id):
         status = await self.speechstatistics.stopRecordChat(group_id)
         if status == 1:
@@ -568,120 +555,148 @@ class Rebot(Adapter):
             await self.sedGroupMsg(group_id, "哦豁，关闭失败，老大来看看")
             await self.sedGroupMentionMsg(group_id, user_id=SUPERADMIN_USER_ID)
 
-# 聊天内容记录
+    # 聊天内容记录
     async def recordChat(self, group_id, sender_user_id, message, time):
         if await self.speechstatistics.checkRecordChat(group_id):
             detail_type = "group"
             group_name = ""
             groupInfo = await self.getGroupInfo(group_id)
-            if groupInfo and groupInfo.dict()['retcode'] == 0:
-                group_name = groupInfo.dict()['data']['group_name']
+            if groupInfo and groupInfo.dict()["retcode"] == 0:
+                group_name = groupInfo.dict()["data"]["group_name"]
             sender_user_name = ""
             userInfo = await self.getGroupMemberInfo(group_id, sender_user_id)
-            if userInfo and userInfo.dict()['retcode'] == 0:
-                sender_user_name = userInfo.dict()['data']['user_name']
-            await self.messagedb.listenMessage(sender_user_id,
-                                               sender_user_name, message, time,
-                                               detail_type, group_id,
-                                               group_name)
+            if userInfo and userInfo.dict()["retcode"] == 0:
+                sender_user_name = userInfo.dict()["data"]["user_name"]
+            await self.messagedb.listenMessage(
+                sender_user_id,
+                sender_user_name,
+                message,
+                time,
+                detail_type,
+                group_id,
+                group_name,
+            )
         return True
 
-# 日活跃度
+    # 日活跃度
     async def getMessageRanking_today(self, group_id):
         RankingMap = await self.messagedb.getMessageRanking_today(group_id)
         result = []
         for key in RankingMap:
             if not RankingMap[key]["user_name"]:
                 numberInfo = await self.getGroupMemberInfo(group_id, key)
-                if numberInfo and numberInfo.dict()['retcode'] == 0:
-                    RankingMap[key]["user_name"] = numberInfo.dict()['data']['user_name']
+                if numberInfo and numberInfo.dict()["retcode"] == 0:
+                    RankingMap[key]["user_name"] = numberInfo.dict()["data"][
+                        "user_name"
+                    ]
             result.append(RankingMap[key])
         mess = ""
         # result取前10
         result = result[0:20]
         for a in result:
-            mess = mess + "✨" + a['user_name'] + " ： 发言" + str(a['number']) + "次✨\n"
-        msg = """
+            mess = (
+                mess + "✨" + a["user_name"] + " ： 发言" + str(a["number"]) + "次✨\n"
+            )
+        msg = (
+            """
 ╭┈┈🎖日活跃度(top 20)🎖┈┈╮
-""" + mess + """
+"""
+            + mess
+            + """
 ╰┈┈┈┈┈┈┈┈┈┈╯
 """
+        )
         today = await TodayApi()
         msg += today
         await self.sedGroupMsg(group_id, msg)
 
-# 月活跃度
+    # 月活跃度
     async def getMessageRanking_month(self, group_id):
         RankingMap = await self.messagedb.getMessageRanking_month(group_id)
         result = []
         for key in RankingMap:
             if not RankingMap[key]["user_name"]:
                 numberInfo = await self.getGroupMemberInfo(group_id, key)
-                if numberInfo and numberInfo.dict()['retcode'] == 0:
-                    RankingMap[key]["user_name"] = numberInfo.dict()['data']['user_name']
+                if numberInfo and numberInfo.dict()["retcode"] == 0:
+                    RankingMap[key]["user_name"] = numberInfo.dict()["data"][
+                        "user_name"
+                    ]
             result.append(RankingMap[key])
         mess = ""
         result = result[0:20]
         for a in result:
-            mess = mess + "✨" + a['user_name'] + " ： 发言" + str(a['number']) + "次✨\n"
-        msg = """
+            mess = (
+                mess + "✨" + a["user_name"] + " ： 发言" + str(a["number"]) + "次✨\n"
+            )
+        msg = (
+            """
 ╭┈┈🎖月活跃度(top 20)🎖┈┈╮
-""" + mess + """
+"""
+            + mess
+            + """
 ╰┈┈┈┈┈┈┈┈┈┈╯
 """
+        )
         today = await TodayApi()
         msg += today
         await self.sedGroupMsg(group_id, msg)
 
-# 总活跃度
+    # 总活跃度
     async def getMessageRanking_all(self, group_id):
         RankingMap = await self.messagedb.getMessageRanking_all(group_id)
         result = []
         for key in RankingMap:
             if not RankingMap[key]["user_name"]:
                 numberInfo = await self.getGroupMemberInfo(group_id, key)
-                if numberInfo and numberInfo.dict()['retcode'] == 0:
-                    RankingMap[key]["user_name"] = numberInfo.dict()['data']['user_name']
+                if numberInfo and numberInfo.dict()["retcode"] == 0:
+                    RankingMap[key]["user_name"] = numberInfo.dict()["data"][
+                        "user_name"
+                    ]
             result.append(RankingMap[key])
         mess = ""
         result = result[0:20]
         for a in result:
-            mess = mess + "✨" + a['user_name'] + "   发言" +\
-                str(a['number']) + "次✨\n"
-        msg = """
+            mess = (
+                mess + "✨" + a["user_name"] + "   发言" + str(a["number"]) + "次✨\n"
+            )
+        msg = (
+            """
 ╭┈┈🎖总活跃度(top 20)🎖┈┈╮
-""" + mess + """
+"""
+            + mess
+            + """
 ╰┈┈┈┈┈┈┈┈┈┈╯
 """
+        )
         today = await TodayApi()
         msg += today
         await self.sedGroupMsg(group_id, msg)
 
-# 一言
+    # 一言
     async def getYiYan(self, group_id):
         res = await getYiYanApi()
         await self.sedGroupMsg(group_id, res)
 
-# 去水印
+    # 去水印
     async def getVideoWaterMark(self, group_id, messageText):
         # 从 messageText 提取https网址
-        urls = re.findall(r'https?://\S+', messageText)
+        urls = re.findall(r"https?://\S+", messageText)
         if len(urls):
             douyinurl = urls[-1]
             res = await getDouYinWaterMarkApi(douyinurl)
-            if 'data' in res:
-                data = res['data']
+            if "data" in res:
+                data = res["data"]
                 if "title" in data:
-                    title = data['title']
+                    title = data["title"]
                 if "author" in data:
-                    author = data['author']
-                if 'url' in data:
-                    videoUrl = data['url']
-                if 'cover' in data:
-                    cover = data['cover']
-                if 'music' in data:
-                    if 'url' in data['music']:
-                        music = data['music']['url']
+                    author = data["author"]
+                if "url" in data:
+                    videoUrl = data["url"]
+                if "cover" in data:
+                    cover = data["cover"]
+                if "music" in data:
+                    if "url" in data["music"]:
+                        music = data["music"]["url"]
                     else:
                         music = None
                 else:
@@ -697,79 +712,113 @@ class Rebot(Adapter):
                     title = ""
                 if videoUrl is None:
                     videoUrl = ""
-                mess = "💌  标题： " + title + "\n" + "😀   作者： " + \
-                    author + "\n" + "🎦  视频链接： " + videoUrl + "\n" + \
-                    "📷  封面链接： " + cover + "\n" + "📼 音频链接： " + music + "\n"
+                mess = (
+                    "💌  标题： "
+                    + title
+                    + "\n"
+                    + "😀   作者： "
+                    + author
+                    + "\n"
+                    + "🎦  视频链接： "
+                    + videoUrl
+                    + "\n"
+                    + "📷  封面链接： "
+                    + cover
+                    + "\n"
+                    + "📼 音频链接： "
+                    + music
+                    + "\n"
+                )
                 await self.sedGroupMsg(group_id, mess)
-                await self.sedGroupMsg(group_id, "复制链接太麻烦？正在发送视频，稍等...")
+                await self.sedGroupMsg(
+                    group_id, "复制链接太麻烦？正在发送视频，稍等..."
+                )
                 # 去除title里面所有符号，只保留汉字，用于上传
                 response = requests.head(videoUrl, allow_redirects=True)
                 long_url = response.url
-                res = await self.upload_file(type="url",
-                                             name=re.sub(r'[^\u4e00-\u9fa5]', '', title)+".mp4",
-                                             url=long_url)
+                res = await self.upload_file(
+                    type="url",
+                    name=re.sub(r"[^\u4e00-\u9fa5]", "", title) + ".mp4",
+                    url=long_url,
+                )
                 file_id = ""
-                if res.dict()['retcode'] == 0:
-                    file_id = res.dict()['data']['file_id']
+                if res.dict()["retcode"] == 0:
+                    file_id = res.dict()["data"]["file_id"]
                     await self.sedFileMsg(group_id, file_id)
                 else:
-                    await self.sedGroupMsg(group_id, "哦豁，好像没有拿到视频，自己复制打开试试？")
+                    await self.sedGroupMsg(
+                        group_id, "哦豁，好像没有拿到视频，自己复制打开试试？"
+                    )
             else:
                 await self.sedGroupMsg(group_id, res)
-            
+
         else:
             await self.sedGroupMsg(group_id, "没有找到抖音链接")
 
-# 解梦
+    # 解梦
     async def getMeng(self, group_id, messageText):
         word = messageText.replace("解梦", "")
         res = await MengApi(word)
         if "data" in res:
-            data = res['data']
+            data = res["data"]
             mess = ""
             for i in data:
-                mess = mess + "💭梦到： " + i['title'] + "\n" +\
-                    "------------\n" + "解梦： " + i['text'] +\
-                    "\n------------\n"
+                mess = (
+                    mess
+                    + "💭梦到： "
+                    + i["title"]
+                    + "\n"
+                    + "------------\n"
+                    + "解梦： "
+                    + i["text"]
+                    + "\n------------\n"
+                )
             await self.sedGroupMsg(group_id, mess)
         else:
             await self.sedGroupMsg(group_id, res)
 
-# 微博热搜
+    # 微博热搜
     async def getWeiBoHot(self, group_id):
         res = await WeiBoHotApi()
         if "data" in res:
-            data = res['data']
+            data = res["data"]
             mess = "下面是热搜榜单\n-----------------------------\n"
             for i in data:
-                mess = mess + "🎈   "+i['title'] +\
-                    ":" + "热度： " + i['hot'] + "  ❤️‍🔥\n"
+                mess = (
+                    mess + "🎈   " + i["title"] + ":" + "热度： " + i["hot"] + "  ❤️‍🔥\n"
+                )
             mess = mess + "-----------------------------\n"
             await self.sedGroupMsg(group_id, mess)
         else:
             await self.sedGroupMsg(group_id, res)
 
-# 天气
+    # 天气
     async def getWeather(self, group_id, messageText):
         city = messageText.replace("天气", "")
         res = await WeatherApi(city)
         if "data" in res:
-            data = res['data']
-            if data['last_update']:
-                dt = datetime.fromisoformat(data['last_update'])
+            data = res["data"]
+            if data["last_update"]:
+                dt = datetime.fromisoformat(data["last_update"])
                 formatted_time = dt.strftime("%Y-%m-%d %H:%M:%S")
             else:
                 formatted_time = ""
-            mess = city + "🌕现在"+data['now']['text'] +\
-                ",🌡温度"+data['now']['temperature'] +\
-                ",⏱更新时间："+formatted_time
+            mess = (
+                city
+                + "🌕现在"
+                + data["now"]["text"]
+                + ",🌡温度"
+                + data["now"]["temperature"]
+                + ",⏱更新时间："
+                + formatted_time
+            )
             today = await TodayApi()
             mess += today
             await self.sedGroupMsg(group_id, mess)
         else:
             await self.sedGroupMsg(group_id, res)
 
-# 新闻
+    # 新闻
     async def getNews(self, group_id):
         await NewsApi()
         # 当前时间戳
@@ -780,18 +829,18 @@ class Rebot(Adapter):
         path = os.path.join(os.getcwd(), "file_cache/temp/news.png")
         res = await self.upload_file(type="path", name=name, path=path)
         file_id = ""
-        if res.dict()['retcode'] == 0:
-            file_id = res.dict()['data']['file_id']
+        if res.dict()["retcode"] == 0:
+            file_id = res.dict()["data"]["file_id"]
         print(file_id)
         await self.sedImageMsg(group_id, file_id)
 
-#  吃什么
+    #  吃什么
     async def getRandomFood(self, group_id):
         current_time = datetime.now().time()
-        morning_start = datetime.strptime('06:00:00', '%H:%M:%S').time()
-        morning_end = datetime.strptime('10:00:00', '%H:%M:%S').time()
-        noon_start = datetime.strptime('10:00:00', '%H:%M:%S').time()
-        noon_end = datetime.strptime('15:00:00', '%H:%M:%S').time()
+        morning_start = datetime.strptime("06:00:00", "%H:%M:%S").time()
+        morning_end = datetime.strptime("10:00:00", "%H:%M:%S").time()
+        noon_start = datetime.strptime("10:00:00", "%H:%M:%S").time()
+        noon_end = datetime.strptime("15:00:00", "%H:%M:%S").time()
         type = 4
         msg = ""
         if morning_start <= current_time < morning_end:
@@ -804,7 +853,7 @@ class Rebot(Adapter):
             type = 3
             msg = "现在是晚餐时间，"
         food = await self.food.getRandomFood(type)
-        msg += "🍇可以试试"+food[4]+"推荐的"+food[1]+"🥙"
+        msg += "🍇可以试试" + food[4] + "推荐的" + food[1] + "🥙"
         await self.sedGroupMsg(group_id, msg)
 
     #  新增美食
@@ -818,48 +867,48 @@ class Rebot(Adapter):
             a = "推荐晚餐"
         else:
             a = "推荐零食"
-        food = messageText.replace(a, "").replace(" ","")
+        food = messageText.replace(a, "").replace(" ", "")
         userInfo = await self.getGroupMemberInfo(group_id, sender_user_id)
         username = ""
-        if userInfo and userInfo.dict()['retcode'] == 0:
-            username = userInfo.dict()['data']['user_name']
+        if userInfo and userInfo.dict()["retcode"] == 0:
+            username = userInfo.dict()["data"]["user_name"]
         status = await self.food.addFood(sender_user_id, username, food, type)
         if status:
             await self.sedGroupMsg(group_id, "新增成功🎉")
         else:
             await self.sedGroupMsg(group_id, "已经有啦")
 
-# 音乐
+    # 音乐
     async def getMusic(self, group_id, messageText):
         musicName = messageText.replace("听歌", "").replace(" ", "")
         data = await MusicApi(musicName)
         print(data)
         if "title" in data:
-            url = data['url']
-            name = data["title"] + '.mp3'
+            url = data["url"]
+            name = data["title"] + ".mp3"
             res = await self.upload_file(type="url", name=name, url=url)
             file_id = ""
-            if res.dict()['retcode'] == 0:
-                file_id = res.dict()['data']['file_id']
+            if res.dict()["retcode"] == 0:
+                file_id = res.dict()["data"]["file_id"]
             print(file_id)
             await self.sedFileMsg(group_id, file_id)
         else:
             await self.sedGroupMsg(group_id, data)
 
-# kfc
+    # kfc
     async def getKfc(self, group_id, messageText):
         data = await KfcApi()
         print(data)
         await self.sedGroupMsg(group_id, data)
 
-# 日报
+    # 日报
     async def getMoyuApi(self, group_id):
         url = await MoyuApi()
         print(url)
         name = "日报"
         res = await self.upload_file(type="url", name=name, url=url)
         file_id = ""
-        if res.dict()['retcode'] == 0:
-            file_id = res.dict()['data']['file_id']
+        if res.dict()["retcode"] == 0:
+            file_id = res.dict()["data"]["file_id"]
         await self.sedImageMsg(group_id, file_id)
         # await self.sedGroupMsg(group_id, data)
