@@ -1,6 +1,7 @@
 """
 启动行为管理，将各类业务剥离开
 """
+
 import asyncio
 import time
 from functools import partial
@@ -18,6 +19,7 @@ from wechatbot_client.file_manager import database_close, database_init
 from wechatbot_client.log import logger
 from wechatbot_client.onebot12 import HeartbeatMetaEvent
 from wechatbot_client.scheduler import scheduler, scheduler_init, scheduler_shutdown
+from wechatbot_client.admin import admin_base_close, admin_base_init
 
 driver = get_driver()
 wechat = get_wechat()
@@ -53,6 +55,7 @@ async def start_up() -> None:
         )
     # 开启数据库
     await database_init()
+    await admin_base_init()
     # 注册消息事件
     wechat.open_recv_msg(f"./{FILE_CACHE}")
     # 开始监听event
@@ -84,6 +87,7 @@ async def shutdown() -> None:
     scheduler_shutdown()
     # 关闭数据库
     await database_close()
+    await admin_base_close()
     if pump_event_task:
         if not pump_event_task.done():
             pump_event_task.cancel()

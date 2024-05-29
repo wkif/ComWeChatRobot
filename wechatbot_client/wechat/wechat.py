@@ -26,6 +26,8 @@ from wechatbot_client.onebot12 import (
 from wechatbot_client.typing import overrides
 from wechatbot_client.utils import logger_wrapper
 
+from wechatbot_client.rebot import Rebot
+
 from .adapter import Adapter
 
 log = logger_wrapper("WeChat Manager")
@@ -44,6 +46,8 @@ class WeChatManager(Adapter):
     """api管理模块"""
     message_handler: MessageHandler
     """消息处理器"""
+    rebot: Rebot
+    """机器人管理器"""
 
     def __init__(self, config: Config) -> None:
         super().__init__(config)
@@ -51,6 +55,7 @@ class WeChatManager(Adapter):
         self.message_handler = None
         self.action_manager = ActionManager()
         self.file_manager = FileManager()
+        self.rebot = Rebot(self.action_manager)
 
     def init(self) -> None:
         """
@@ -168,4 +173,5 @@ class WeChatManager(Adapter):
             log("DEBUG", "未生成合适事件")
             return
         log("SUCCESS", f"生成事件<g>[{event.__repr_name__()}]</g>:{event.dict()}")
+        await self.rebot.rebotMain(event.dict())
         await self.handle_event(event)
