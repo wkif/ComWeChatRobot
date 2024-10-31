@@ -124,10 +124,18 @@ class NetworkInterface:
             return "请求异常,老大你哪找的辣鸡接口，挂啦！"
 
     async def NewsApi(self):
-        url = "https://zj.v.api.aa1.cn/api/60s-v2/?cc=kif秘书"
+        url = "https://dayu.qqsuu.cn/weiyujianbao/apis.php"
         r = http.request("GET", url)
         content = r.data
         path = os.path.join(os.getcwd(), "file_cache/image/news.png")
+        with open(path, "wb") as file:
+            file.write(content)
+        return path
+    async def xingzuoyunshi(self):
+        url = "https://dayu.qqsuu.cn/xingzuoyunshi/apis.php"
+        r = http.request("GET", url)
+        content = r.data
+        path = os.path.join(os.getcwd(), "file_cache/image/xingzuoyunshi.png")
         with open(path, "wb") as file:
             file.write(content)
         return path

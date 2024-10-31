@@ -86,6 +86,8 @@ class Rebot(Adapter):
             await self.getMoyuApi(group_id)
         if "新闻" in messageText:
             await self.getNews(group_id)
+        if "星座" in messageText:
+            await self.getXingZuoYunShi(group_id)
         # if "test" in messageText:
         #     await self.utils.sendMusic(
         #         sender_user_id,
@@ -544,3 +546,7 @@ class Rebot(Adapter):
     async def getNews(self, group_id):
         file_path = await self.networkInterface.NewsApi()
         await self.utils.sedImageMsgByPath(group_id, file_path)
+    # 星座运势
+    async def getXingZuoYunShi(self, group_id):
+        data = await self.networkInterface.xingzuoyunshi()
+        await self.utils.sedGroupMsg(group_id, data)
