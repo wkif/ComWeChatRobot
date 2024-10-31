@@ -17,7 +17,7 @@ from wechatbot_client.wechat.adapter import Adapter
 from .utils import RebotUtils
 from wechatbot_client.admin import Admin
 from wechatbot_client.group import OpenGroup, GroupMessage
-from wechatbot_client.consts import SUPERADMIN_USER_ID, REBOT_NAME
+from wechatbot_client.consts import SUPERADMIN_USER_ID, REBOT_NAME, REBOT_USER_ID
 from wechatbot_client.networkInterface.main import NetworkInterface
 
 log = logger_wrapper("WeChat Manager")
@@ -59,12 +59,15 @@ class Rebot(Adapter):
             await self.enableRobot(group_id, sender_user_id)
         if messageText == "关闭机器人":
             await self.disableRobot(group_id, sender_user_id)
-        if messageText == "清除缓存":
+        if messageText == "清除缓存" or messageText == "清理缓存":
             await self.clearCache(sender_user_id, group_id)
         #     # 以下功能需要开通机器人才执行------------
         if not await self.openGroup.isOpen(group_id):
-            self.utils.sedGroupMsg(group_id, "机器人未开通")
-            return
+            if mention_userId == REBOT_USER_ID:
+                await self.utils.sedGroupMsg(group_id, "机器人未开通")
+                return
+            else:
+                return
         if "日活" in messageText:
             await self.getMessageRanking_today(group_id)
         if "月活" in messageText:
@@ -73,6 +76,22 @@ class Rebot(Adapter):
             await self.getMessageRanking_all(group_id)
         if "去水印" in messageText:
             await self.getVideoWaterMark(group_id, messageText)
+        if "微博热搜" in messageText:
+            await self.getWeiBoHot(group_id)
+        if "天气" in messageText:
+            await self.getWeather(group_id, messageText)
+        if "星期四" in messageText:
+            await self.getKfc(group_id)
+        if "日报" in messageText:
+            await self.getMoyuApi(group_id)
+        if "新闻" in messageText:
+            await self.getNews(group_id)
+        # if "test" in messageText:
+        #     await self.utils.sendMusic(
+        #         sender_user_id,
+        #         "wxid_ijmga1yqj5ug22",
+        #         "http://music.163.com/song/media/outer/url?id=1365898499.mp3",
+        #     )
 
     # 功能菜单处理模块
     async def menuList(self, group_id, sender_user_id):
@@ -137,15 +156,11 @@ class Rebot(Adapter):
 17. 日报）
 """
         )
-        img = await self.utils.text2img(message)
-        res = await self.utils.upload_file(type="path", name="menu.jpg", path=img)
-        file_id = ""
-        if res.dict()["retcode"] == 0:
-            file_id = res.dict()["data"]["file_id"]
-        else:
+        img = await self.utils.text2img(message, "menu.jpg")
+        if not img:
             return
         await self.utils.sedGroupMentionMsg(group_id, sender_user_id)
-        await self.utils.sedImageMsg(group_id, file_id)
+        await self.utils.sedImageMsgByPath(group_id, img)
 
     # 新增管理处理模块
     async def addAdmin(self, sender_user_id, group_id, mention_userId):
@@ -279,13 +294,9 @@ class Rebot(Adapter):
     async def clearCache(self, sender_user_id, group_id):
         if sender_user_id == SUPERADMIN_USER_ID:
             res = await self.utils.clean_cache()
-            if res.dict()["retcode"] == 0:
-                num = res.dict()["data"]
-                await self.utils.sedGroupMsg(
-                    group_id, "已经清除全部缓存,共" + str(num) + "个文件"
-                )
+            if res:
+                await self.utils.sedGroupMsg(group_id, "已经清除全部缓存")
             else:
-                log("ERROR", "缓存清理异常：" + res.dict()["message"])
                 await self.utils.sedGroupMsg(group_id, "清理失败，看看日志咋回事")
         else:
             await self.utils.sedGroupMsg(group_id, "让老大来清理吧！")
@@ -400,6 +411,7 @@ class Rebot(Adapter):
 
         await self.utils.sedGroupMsg(group_id, msg)
 
+    # 去水印
     async def getVideoWaterMark(self, group_id, messageText):
         # 从 messageText 提取https网址
         urls = re.findall(r"https?://\S+", messageText)
@@ -477,3 +489,58 @@ class Rebot(Adapter):
 
         else:
             await self.utils.sedGroupMsg(group_id, "没有找到抖音链接")
+
+    # 微博热搜
+    async def getWeiBoHot(self, group_id):
+        res = await self.networkInterface.WeiBoHotApi()
+        if "data" in res:
+            data = res["data"]
+            mess = "下面是热搜榜单\n-----------------------------\n"
+            for i in data:
+                mess = (
+                    mess + "🎈   " + i["title"] + ":" + "热度： " + i["hot"] + "  ❤️‍🔥\n"
+                )
+            mess = mess + "-----------------------------\n"
+            img = await self.utils.text2img(mess, "weibo.jpg")
+            await self.utils.sedImageMsgByPath(group_id, img)
+        else:
+            await self.utils.sedGroupMsg(group_id, res)
+
+    # 天气
+    async def getWeather(self, group_id, messageText):
+        city = messageText.replace("天气", "")
+        res = await self.networkInterface.WeatherApi(city)
+        if "data" in res:
+            data = res["data"]
+            if data["last_update"]:
+                dt = datetime.fromisoformat(data["last_update"])
+                formatted_time = dt.strftime("%Y-%m-%d %H:%M:%S")
+            else:
+                formatted_time = ""
+            mess = (
+                city
+                + "🌕现在"
+                + data["now"]["text"]
+                + ",🌡温度"
+                + data["now"]["temperature"]
+                + ",⏱更新时间："
+                + formatted_time
+            )
+            await self.utils.sedGroupMsg(group_id, mess)
+        else:
+            await self.utils.sedGroupMsg(group_id, res)
+
+    # KFC
+    async def getKfc(self, group_id):
+        data = await self.networkInterface.KfcApi()
+        await self.utils.sedGroupMsg(group_id, data)
+
+    # 摸鱼日报
+    async def getMoyuApi(self, group_id):
+        file_path = await self.networkInterface.MoyuApi()
+        await self.utils.sedImageMsgByPath(group_id, file_path)
+
+    # 新闻
+    async def getNews(self, group_id):
+        file_path = await self.networkInterface.NewsApi()
+        await self.utils.sedImageMsgByPath(group_id, file_path)

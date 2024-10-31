@@ -103,9 +103,9 @@ async def database_init() -> None:
     """
     数据库初始化
     """
-    logger.debug("<y>正在注册数据库...</y>")
-    Path(f"./{DATABASE_PATH}").mkdir(exist_ok=True)
-    database_path = f"./{DATABASE_PATH}/data.db"
+    logger.debug("<y>正在注册file_cache数据库...</y>")
+    Path(f"./{DATABASE_PATH}/file_cache/").mkdir(exist_ok=True)
+    database_path = f"./{DATABASE_PATH}/file_cache/data.db"
     db_url = f"sqlite://{database_path}"
     # 这里填要加载的表
     models = [
@@ -114,7 +114,7 @@ async def database_init() -> None:
     modules = {"models": models}
     await Tortoise.init(db_url=db_url, modules=modules)
     await Tortoise.generate_schemas()
-    logger.info("<g>数据库初始化成功...</g>")
+    logger.info("<g>file_cache数据库初始化成功...</g>")
 
 
 async def database_close() -> None:

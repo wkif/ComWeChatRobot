@@ -1122,3 +1122,19 @@ class ComWechatApi(ComProgress):
             while not file.exists():
                 await asyncio.sleep(0.5)
         return path
+
+    def send_appMsg(self, wxid: str, appid: str) -> bool:
+        """
+        说明:
+            发送微信小程序
+
+        参数:
+            * `wxid`: 对方wxid
+            * `appid`: 小程序appid
+
+        返回:
+            * `bool`: 操作是否成功
+        """
+
+        status = self.robot.CSendAppMsg(self.wechat_pid, wxid, appid)
+        print(status)

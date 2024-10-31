@@ -1,4 +1,5 @@
 import os
+import shutil
 from wechatbot_client.action_manager import (
     ActionManager,
     ActionRequest,
@@ -102,6 +103,18 @@ class RebotUtils(Adapter):
             )
         )
 
+    async def sedImageMsgByPath(self, group_id, path):
+        return await self.action_request(
+            ActionRequest(
+                action="send_message",
+                params={
+                    "detail_type": "group",
+                    "group_id": group_id,
+                    "message": [{"type": "image_path", "data": {"file_path": path}}],
+                },
+            )
+        )
+
     # 发送文件
     async def sedFileMsg(self, group_id, file_id):
         return await self.action_request(
@@ -112,6 +125,51 @@ class RebotUtils(Adapter):
                     "group_id": group_id,
                     "message": [{"type": "file", "data": {"file_id": file_id}}],
                 },
+            )
+        )
+
+    async def sendMusic(self, user_id, group_id, url):
+        xml = (
+            """<xml>
+    <ToUserName>
+        < ![CDATA["""
+            + group_id
+            + """] ]>
+    </ToUserName>
+    <FromUserName>
+        < ![CDATA["""
+            + user_id
+            + """] ]>
+    </FromUserName>
+    <CreateTime>12345678</CreateTime>
+    <MsgType>
+        < ![CDATA[music] ]>
+    </MsgType>
+    <Music>
+        <Title>
+            < ![CDATA[TITLE] ]>
+        </Title>
+        <Description>
+            < ![CDATA[DESCRIPTION] ]>
+        </Description>
+        <MusicUrl>
+            < ![CDATA["""
+            + url
+            + """] ]>
+        </MusicUrl>
+        <HQMusicUrl>
+            < ![CDATA[HQ_MUSIC_Url] ]>
+        </HQMusicUrl>
+        <ThumbMediaId>
+            < ![CDATA[media_id] ]>
+        </ThumbMediaId>
+    </Music>
+</xml>"""
+        )
+        return await self.action_request(
+            ActionRequest(
+                action="wx.send_raw_xml",
+                params={"user_id": group_id, "xml": xml},
             )
         )
 
@@ -140,20 +198,26 @@ class RebotUtils(Adapter):
             mention_userId = message["message"][0].data["user_id"]
             messageText = message["message"][1].data["text"]
         else:
-            messageText = message["message"][0].data["text"]
+            if "text" in message["message"][0].data:
+                messageText = message["message"][0].data["text"]
+            elif "url" in message["message"][0].data:
+                messageText = message["message"][0].data["url"]
+            else:
+                messageText = ""
         group_id = message["group_id"]
-        return {
+        res = {
             "sender_user_id": sender_user_id,
             "group_id": group_id,
             "messageText": messageText,
             "mention_userId": mention_userId,
             "mesageType": mesageType,
         }
+        print(res)
+        return res
 
     # 文字转图片
-    async def text2img(self, text):
+    async def text2img(self, text, img_name, width=30):
         fontSize = 30
-        width = 30
         lines = text.count("\n") + 1
         # 创建一个空白图片
         image = Image.new(
@@ -169,12 +233,17 @@ class RebotUtils(Adapter):
         imagePath = os.path.join(os.getcwd(), "file_cache/image")
         if not os.path.exists(imagePath):
             os.makedirs(imagePath)
-        image.save(f"{imagePath}/menu.jpg")
-        path = os.path.join(os.getcwd(), "file_cache/image/menu.jpg")
+        image.save(f"{imagePath}/{img_name}")
+        path = os.path.join(os.getcwd(), f"{imagePath}/{img_name}")
         return path
 
     # 清除缓存
     async def clean_cache(self, days: int = 0):
-        return await self.action_request(
+        await self.action_request(
             ActionRequest(action="wx.clean_cache", params={"days": days})
         )
+        imagePath = os.path.join(os.getcwd(), "file_cache/image")
+        # 清除图片缓存
+        if os.path.exists(imagePath):
+            shutil.rmtree(imagePath)
+        return True

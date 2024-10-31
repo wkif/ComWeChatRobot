@@ -64,7 +64,10 @@ class ApiManager:
         # 初始化com组件
         log("DEBUG", "<y>初始化com组件...</y>")
         if not self.com_api.init():
-            log("ERROR", "<r>未安装com组件，启动失败，请使用目录下`install.bat`安装组件...</r>")
+            log(
+                "ERROR",
+                "<r>未安装com组件，启动失败，请使用目录下`install.bat`安装组件...</r>",
+            )
             exit(0)
         log("DEBUG", "<g>com组件初始化成功...</g>")
         # 启动微信进程
@@ -188,6 +191,11 @@ class ApiManager:
                 auto_nickname=False,
             )
 
+    @add_segment_handler("wxapp")
+    def _send_appMsg(self, id: str, segment: MessageSegment) -> bool:
+        # 微信小程序
+        return self.com_api.send_appMsg(wxid=id, appid=segment.data["appid"])
+
     @add_segment_handler("image")
     async def _send_image(self, id: str, segment: MessageSegment) -> bool:
         """发送图片"""
@@ -195,6 +203,15 @@ class ApiManager:
         file_path, _ = await self.file_manager.get_file(file_id)
         if file_path is None:
             raise FileNotFound(file_id)
+        return self.com_api.send_image(id, file_path)
+
+    @add_segment_handler("image_path")
+    async def _send_image(self, id: str, segment: MessageSegment) -> bool:
+        """发送图片"""
+        file_path = segment.data["file_path"]
+        print(file_path)
+        if file_path is None:
+            return False
         return self.com_api.send_image(id, file_path)
 
     @add_segment_handler("file")
@@ -284,7 +301,10 @@ class ActionManager(ApiManager):
         match detail_type:
             case "channel":
                 return ActionResponse(
-                    status="failed", retcode=10004, data=None, message="不支持channel发送"
+                    status="failed",
+                    retcode=10004,
+                    data=None,
+                    message="不支持channel发送",
                 )
             case "private":
                 if user_id is None:
@@ -484,9 +504,9 @@ class ActionManager(ApiManager):
         info = self.com_api.get_user_info(group_id)
         data = {
             "group_id": info["wxId"],
-            "group_name": info["wxNickName"]
-            if info["wxNickName"] != "null"
-            else "",  # 加入拓展字段
+            "group_name": (
+                info["wxNickName"] if info["wxNickName"] != "null" else ""
+            ),  # 加入拓展字段
             f"{PREFIX}.avatar": info["wxSmallAvatar"],  # 头像
         }
         return ActionResponse(status="ok", retcode=0, data=data)
@@ -1002,6 +1022,8 @@ class ActionManager(ApiManager):
             * `xml`: xml内容
             * `image_path`: 图片路径. 默认为空.
         """
+        print(user_id)
+        print(xml)
         status = self.com_api.send_xml(user_id, xml, image_path)
         if status:
             self.com_api.get_contacts()
