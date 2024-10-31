@@ -123,7 +123,7 @@ class Rebot(Adapter):
 
 |----群成员功能区----|
 
-1. 签到；
+1. 吃什么
 
 2. 日活；
 
@@ -149,7 +149,7 @@ class Rebot(Adapter):
 
 13. 星期四（eg:星期四）
 
-14. 日报）
+14. 日报
 """
         )
         img = await self.utils.text2img(message, "menu.jpg")
@@ -542,5 +542,5 @@ class Rebot(Adapter):
         await self.utils.sedImageMsgByPath(group_id, file_path)
     # 星座运势
     async def getXingZuoYunShi(self, group_id):
-        data = await self.networkInterface.xingzuoyunshi()
-        await self.utils.sedGroupMsg(group_id, data)
+        file_path = await self.networkInterface.xingzuoyunshi()
+        await self.utils.sedImageMsgByPath(group_id, file_path)
